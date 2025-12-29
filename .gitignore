@@ -71,3 +71,6 @@ yarn-error.log*
 
 # local junk
 temp_app/
+
+# assets
+_assets/
