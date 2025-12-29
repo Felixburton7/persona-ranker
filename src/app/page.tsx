@@ -70,7 +70,7 @@ export default function Home() {
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500">autonomously.</span>
             </h1>
             <p className={`text-gray-500 leading-relaxed max-w-lg font-light transition-all duration-700 ${jobId ? 'text-sm mb-4 opacity-80' : 'text-lg mb-10 opacity-100'}`}>
-              Upload your leads list to deploy autonomous research agents. This project maps organization hierarchies and scores buying intent for every account.
+              Upload your leads list (.csv file) below and use it to rank leads based on the target personas. This project maps organization hierarchies and scores buying intent for every lead. Also has some bonus features that were fun to build! Checkout Prompt Optimization and Documentation at the top for more!
             </p>
           </header>
 
