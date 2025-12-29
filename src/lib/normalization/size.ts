@@ -5,13 +5,20 @@ const SIZE_MAPPINGS: Record<string, SizeBucket> = {
     "1-10": "startup",
     "2-10": "startup",
     "11-50": "startup",
+    "1-50": "startup",
+    "1-20": "startup",
 
     // SMB (51-200)
     "51-200": "smb",
+    "11-200": "smb", // Broad range fallback
+    "50-200": "smb",
 
     // Mid-Market (201-1000)
     "201-500": "mid_market",
     "501-1000": "mid_market",
+    "201-1000": "mid_market",
+    "200-500": "mid_market",
+    "500+": "mid_market", // Ambiguous, but often mid-market start
 
     // Enterprise (1000+)
     "1001-5000": "enterprise",
@@ -19,17 +26,22 @@ const SIZE_MAPPINGS: Record<string, SizeBucket> = {
     "10001+": "enterprise",
     "1000+": "enterprise",
     "10000+": "enterprise",
+    "5000+": "enterprise",
 };
 
 export function normalizeSizeBucket(employeeRange: string): SizeBucket | null {
     if (!employeeRange) return null;
-    const cleaned = employeeRange.trim();
-    // Try exact match
-    if (SIZE_MAPPINGS[cleaned]) return SIZE_MAPPINGS[cleaned];
 
-    // Try without spaces in range (e.g. "11 - 50" -> "11-50")
-    const noSpaces = cleaned.replace(/\s+/g, "");
-    if (SIZE_MAPPINGS[noSpaces]) return SIZE_MAPPINGS[noSpaces];
+    // 1. Aggressive cleanup: lower case, replace en-dashes, remove spaces
+    const cleaned = employeeRange
+        .toLowerCase()
+        .replace(/–/g, "-")  // En-dash to hyphen
+        .replace(/—/g, "-")  // Em-dash to hyphen
+        .replace(/\s+/g, "") // Remove all spaces
+        .trim();
+
+    // 2. Direct lookup
+    if (SIZE_MAPPINGS[cleaned]) return SIZE_MAPPINGS[cleaned];
 
     return null;
 }

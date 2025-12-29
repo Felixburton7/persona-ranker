@@ -138,7 +138,7 @@ export async function completionWithRetry(
 
   // Create unique model list with requested model first
   const models = [params.model, ...fallbackList.filter(m => m !== params.model)];
-  const uniqueModels = [...new Set(models)];
+  const uniqueModels = Array.from(new Set(models));
 
   // Log mode for debugging
   if (isStrictGeminiMode) {
@@ -303,29 +303,71 @@ export function extractJsonResponse<T>(text: string): T {
   if (startIndex !== -1) {
     let truncated = cleanText.slice(startIndex);
 
+    // Strategy A: Aggressive Array Repair (Discard incomplete last item)
+    // Most valuable for "results": [...] lists where we can afford to lose the last item
+    // but cannot afford to crash the whole batch.
+    const resultsMarker = /"results"\s*:\s*\[/;
+    if (resultsMarker.test(truncated)) {
+      // Find the last completely closed object within the array
+      const lastObjectEnd = truncated.lastIndexOf('},');
+      const arrayStart = truncated.indexOf('[');
+
+      // If we found a closed object AND it's after the array started
+      if (lastObjectEnd > arrayStart) {
+        const healed = truncated.slice(0, lastObjectEnd + 1) + ']}';
+        try {
+          return JSON.parse(healed);
+        } catch { /* continue to Strategy B */ }
+      }
+    }
+
+    // Strategy B: Basic Closure Repair (Try to close current item)
     // Attempt basic repair: close open strings and braces
-    // This is a naive repair but works for simple truncation
     let repaired = truncated;
 
-    // If it ends in the middle of a string (no closing quote for the last value)
-    const lastQuoteIndex = repaired.lastIndexOf('"');
-    const secondLastQuoteIndex = repaired.lastIndexOf('"', lastQuoteIndex - 1);
+    // Remove text that shouldn't be there (e.g. trailing "..." or "etc")
+    repaired = repaired.replace(/\.\.\.$/, "").trim();
 
-    // Count quotes to see if we're inside one
-    const quoteCount = (repaired.match(/"/g) || []).length;
+    // If it ends with a backslash (truncated escape), remove it to avoid escaping our closing quote
+    if (repaired.endsWith("\\")) {
+      repaired = repaired.slice(0, -1);
+    }
+
+    // If it ends in the middle of a string (no closing quote for the last value)
+    const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
     if (quoteCount % 2 !== 0) {
       repaired += '"';
     }
 
-    // Add closing braces/brackets
+    // Remove trailing comma if present (common in truncation)
+    // Also remove trailing "key": or "key" if it stops there
+    repaired = repaired.trim();
+    if (repaired.endsWith(',')) {
+      repaired = repaired.slice(0, -1);
+    }
+
+    // Add closing braces/brackets until it parses
     const openBraces = (repaired.match(/\{/g) || []).length;
     const closeBraces = (repaired.match(/\}/g) || []).length;
     for (let i = 0; i < (openBraces - closeBraces); i++) {
       repaired += '}';
     }
 
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/\]/g) || []).length;
+    for (let i = 0; i < (openBrackets - closeBrackets); i++) {
+      repaired += ']';
+    }
+
     try {
       return JSON.parse(repaired);
+    } catch { /* continue */ }
+  }
+
+  // Final check: sometimes it's valid JSON wrapped in quotes?
+  if (cleanText.startsWith('"') && cleanText.endsWith('"')) {
+    try {
+      return JSON.parse(JSON.parse(cleanText)); // Double parse
     } catch { /* continue */ }
   }
 

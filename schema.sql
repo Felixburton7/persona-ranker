@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS companies (
   size_bucket company_size,
   industry TEXT,
   scraped_summary TEXT,
+  gradient_text TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS prompt_versions (
   composite_score FLOAT,
   parent_version_id UUID REFERENCES prompt_versions(id),
   gradient_summary TEXT,
+  gradient_text TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -162,6 +164,7 @@ CREATE TABLE IF NOT EXISTS optimization_runs (
 -- Add created_at column to optimization_runs if it doesn't exist (for existing tables)
 ALTER TABLE optimization_runs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE optimization_runs ADD COLUMN IF NOT EXISTS error_message TEXT;
+ALTER TABLE optimization_runs ADD COLUMN IF NOT EXISTS trigger_run_id TEXT;
 
 -- 8. API Keys table
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -260,7 +263,9 @@ ALTER TABLE ai_calls DROP CONSTRAINT IF EXISTS ai_calls_call_type_check;
 
 -- Add the updated constraint with all call types
 ALTER TABLE ai_calls ADD CONSTRAINT ai_calls_call_type_check 
-  CHECK (call_type IN ('ranking', 'ranking_batch', 'enrichment', 'optimization', 'gradient', 'system_init', 'skipped_rate_limit', 'company_completion', 'gemini_api_failed'));
+  CHECK (call_type IN ('ranking', 'ranking_batch', 'enrichment', 'optimization', 'gradient', 'system_init', 'skipped_rate_limit', 'company_completion', 'gemini_api_failed', 'eval_progress'));
 
 -- Verify the constraint is applied
 SELECT 'Constraint updated successfully! ✓' AS status;
+
+ALTER TABLE prompt_versions ADD COLUMN IF NOT EXISTS gradient_text TEXT;

@@ -32,38 +32,78 @@ export function buildRankingPrompt(
     .map((c, i) => {
       const shortId = i + 1; // 1-indexed
       idMap.set(shortId, c.id);
-      return `${shortId}. ${c.full_name} | ${c.title}`;
+      return `${shortId}. ID: ${shortId} | ${c.full_name} | ${c.title}`;
     })
     .join("\n");
 
-  const sizeContext = getSizeContext(company.size_bucket);
+  const sizeRules = getSizeRules(company.size_bucket);
 
   const prompt = `# Lead Qualification for B2B Sales Outbound
 
-You are scoring leads for Throxy, a company that books meetings for B2B sales teams.
+You are scoring leads for Throxy, a company that books meetings for B2B sales teams selling into traditional industries (manufacturing, healthcare, education).
 
 ## Company Context
 - **Company:** ${company.name}
 - **Size:** ${company.size_bucket ? company.size_bucket.toUpperCase() : "UNKNOWN"} (${company.employee_range})
 - **Industry:** ${company.industry || "Unknown"}
-${scrapedSummary ? `- **Intel:** ${scrapedSummary}` : ""}
+${scrapedSummary ? `- **Company Intel:** ${scrapedSummary}` : ""}
 
-## Candidates (${candidates.length} total)
+## Candidates to Rank
 ${candidateList}
 
-${sizeContext}
+## Scoring Rules for ${company.size_bucket ? company.size_bucket.toUpperCase() : "THIS"} Companies
 
-## Hard Exclusions (ALWAYS irrelevant, score 0)
-- HR / Recruiting / People Operations
-- Finance / Accounting / FP&A
-- Legal / Compliance
-- Customer Support / Customer Success
-- Investors / Board Members / Advisors
-- Interns / Students
+${sizeRules}
+
+## Who NOT to Contact
+
+### Hard Exclusions (ALWAYS mark irrelevant, score 0)
+| Role | Reason |
+|------|--------|
+| CEO / President (Mid-Market & Enterprise) | Too far removed from outbound execution |
+| CFO / Finance | Wrong department (unless Startup Finance Head) |
+| HR / Legal / Compliance | Administrative function |
+| Customer Success / Support | Post-sale focus |
+| Board / Investors | Non-operational |
+| Interns / Students | No purchasing power |
+
+### Soft Exclusions (Deprioritize or Mark Irrelevant)
+| Role | Context |
+|------|---------|
+| CTO / Engineering | Irrelevant (unless explicitly "GTM Systems" or at <50 employees) |
+| Product Management | Internal product focus |
+| Marketing | Focuses on inbound/brand, rarely buys outbound tools |
+| BDRs / SDRs | End users; usually not decision makers |
+| Account Executives | Focused on closing, not infrastructure |
+
+## Qualification Signals (Context for Scoring)
+**Note: Only use these signals if explicitly present in scraped summary / input. Otherwise ignore.**
+
+### Positive Signals (Increase Score)
+- Recently raised funding (Budget available)
+- Actively hiring SDRs/BDRs (Investing in outbound)
+- Sells into enterprise or mid-market buyers
+- Long sales cycles (3+ months)
+- Lead was recently promoted
+- Company posting about "pipeline problems" or "scaling sales"
+- Small or no existing SDR team
+- Previous company used outsourced outbound
+
+### Negative Signals (Decrease Score)
+- Sells to SMB or consumers (B2C)
+- Product-led growth (PLG) company
+- Large, established SDR team (20+)
+- Company in layoffs or cost-cutting mode
+- No online presence or outdated website
+
+## Role Classifications
+- **decision_maker**: Can approve purchase of sales tools (primary target)
+- **champion**: Can advocate internally, useful for multi-threading (secondary)
+- **irrelevant**: Wrong department, seniority, or role for this company size
 
 ## Output Format
 
-Return a JSON object with a "results" array containing EXACTLY ${candidates.length} objects (one per candidate).
+Return a JSON object with a "results" array. Include exactly one object per provided candidate. Do not omit any candidates.
 
 {
   "results": [
@@ -71,67 +111,93 @@ Return a JSON object with a "results" array containing EXACTLY ${candidates.leng
       "id": 1,
       "is_relevant": true,
       "role_type": "decision_maker",
+      "rank_within_company": 1,
       "score": 92,
-      "reasoning": "VP Sales at SMB - primary decision maker"
-    },
-    {
-      "id": 2,
-      "is_relevant": false,
-      "role_type": "irrelevant",
-      "score": 0,
-      "reasoning": "HR role - excluded"
+      "rubric": {
+        "department_fit": 5,
+        "seniority_fit": 4,
+        "size_fit": 5
+      },
+      "reasoning": "VP Sales at SMB - primary decision maker for sales tools",
+      "flags": []
     }
   ]
 }
 
-**Rules:**
-- id: Use the candidate NUMBER (1, 2, 3...) NOT a UUID
-- role_type: "decision_maker" | "champion" | "irrelevant"
-- score: 0-100 (90-100=top priority decision maker, 50-89=champion, 0=irrelevant)
-- reasoning: Brief explanation of the score
-- You MUST return exactly ${candidates.length} results
-- DO NOT assign ranks - ranks will be computed automatically based on scores
+**Important:**
+- Set rank_within_company to 1, 2, 3... for relevant leads (1 = best)
+- Set rank_within_company to null for irrelevant leads
+- Score 0-100 is for tiebreaking (90-100 = perfect fit, 0 = irrelevant)
+- Return one object per candidate, including irrelevant ones
 
-Return ONLY JSON. No markdown, no explanation.`;
+Return ONLY the JSON object, no markdown, no explanation.`;
 
   return { prompt, idMap };
 }
 
-function getSizeContext(sizeBucket: string): string {
+function getSizeRules(sizeBucket: string): string {
   if (!sizeBucket) return "";
 
   const rules: Record<string, string> = {
-    startup: `## Startup Rules (1-50 employees)
-**Founders ARE the sales team. They make fast decisions.**
+    startup: `### Startup (1-50 employees)
+At early-stage companies, founders are operationally involved in sales and make fast purchasing decisions.
 
-Top Priority (rank 1-2): Founder/CEO, President, Owner
-Secondary (rank 3-4): VP Sales, CRO, Head of Growth  
-Champion (rank 5+): Sales Manager, SDR/BDR`,
+**Primary Targets (Rank 1-5):**
+1. Founder / Co-Founder (Priority 5/5)
+2. CEO / President (Priority 5/5)
+3. Owner / Co-Owner (Priority 5/5)
+4. Managing Director (Priority 4/5)
+5. Head of Sales (Priority 4/5)
 
-    smb: `## SMB Rules (51-200 employees)
-**Dedicated sales leadership exists. Founders delegate.**
+**Buying trigger:** "I don't have time to do outbound myself anymore."
 
-Top Priority (rank 1-3): VP Sales, Sales Director, CRO
-Secondary (rank 4-6): RevOps, CEO/Founder, Growth Lead
-Champion (rank 7+): SDR, BDR, Sales Manager`,
+**Note:** Founders and CPUs are the decision makers here.`,
 
-    mid_market: `## Mid-Market Rules (201-1000 employees)
-**Established sales org. Multi-threading essential.**
+    smb: `### SMB (51-200 employees)
+Sales leadership exists but lacks resources to build sophisticated outbound infrastructure.
 
-Top Priority (rank 1-3): VP Sales Dev, Head of SDR, Sales Director
-Secondary (rank 4-6): Sales Ops, RevOps Manager
-Champion (rank 7+): BDR Manager, SDR Manager
+**Primary Targets (Rank 1-7):**
+1. VP of Sales (Priority 5/5)
+2. Head of Sales (Priority 5/5)
+3. Sales Director (Priority 5/5)
+4. Director of Sales Development (Priority 5/5)
+5. CRO (Chief Revenue Officer) (Priority 4/5)
+6. Head of Revenue Operations (Priority 4/5)
+7. VP of Growth (Priority 4/5)
 
-**Exclude: CEO/President (too removed, unless GTM title)**`,
+**Buying trigger:** "My team can't keep up with our growth goals."`,
 
-    enterprise: `## Enterprise Rules (1000+ employees)
-**Complex buying. CEOs will never see your email.**
+    mid_market: `### Mid-Market (201-1,000 employees)
+Established sales organizations struggling with pipeline quality and BDR productivity. Multiple stakeholders involved in decisions.
 
-Top Priority (rank 1-3): VP Sales Dev, VP Inside Sales, Director SDR
-Secondary (rank 4-6): Sales Ops Director, RevOps Director
-Champion (rank 7+): BDR Manager
+**Primary Targets (Rank 1-7):**
+1. VP of Sales Development (Priority 5/5)
+2. VP of Sales (Priority 5/5)
+3. Head of Sales Development (Priority 5/5)
+4. Director of Sales Development (Priority 5/5)
+5. CRO (Chief Revenue Officer) (Priority 4/5)
+6. VP of Revenue Operations (Priority 4/5)
+7. VP of GTM (Priority 4/5)
 
-**Exclude: CEO, President, Founder, Board Members**`,
+**Champions (for multi-threading):** Sales Managers, BDR Managers, RevOps Managers
+
+**Buying trigger:** "We need to improve outbound efficiency and pipeline predictability."`,
+
+    enterprise: `### Enterprise (1,000+ employees)
+Complex buying processes. CEOs are too far removed—target VP and Director level leaders who own the function.
+
+**Primary Targets (Rank 1-7):**
+1. VP of Sales Development (Priority 5/5)
+2. VP of Inside Sales (Priority 5/5)
+3. Head of Sales Development (Priority 5/5)
+4. CRO (Chief Revenue Officer) (Priority 4/5)
+5. VP of Revenue Operations (Priority 4/5)
+6. Director of Sales Development (Priority 4/5)
+7. VP of Field Sales (Priority 4/5)
+
+**Champions (essential):** BDR Managers, Directors of Sales Operations, RevOps Managers
+
+**Buying trigger:** "We need to hit aggressive growth targets with better outbound execution."`,
   };
 
   return rules[sizeBucket] || rules.smb;

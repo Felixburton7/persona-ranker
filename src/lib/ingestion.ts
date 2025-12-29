@@ -108,20 +108,23 @@ export async function processCsvUpload(fileContent: string, preferredModel?: str
 
     if (jobError || !job) throw new Error("Failed to create ranking job: " + jobError?.message);
 
+
     // 4. Batch Persist Companies and Leads
     const triggers: any[] = [];
 
     // We process companies sequentially or in parallel?
     // Upsert companies first.
+    // [MODIFICATION] We append "-<jobId>" to the canonical_key to ensure ISOLATION between jobs.
+    // This effectively makes the ranker "Browser Specific" (strictly, Job Specific) rather than Global.
+    // Two users ranking "Acme Corp" at the same time will create two distinct "Acme Corp" entries
+    // with different IDs, preventing them from overwriting each other's leads.
     const companiesToUpsert = Array.from(companyGroups.values()).map(g => ({
         name: g.info.name,
         domain: g.info.domain,
-        canonical_key: g.info.canonical_key,
+        canonical_key: `${g.info.canonical_key}-${job.id}`, // Scoped to Job ID
         employee_range: g.info.employee_range,
         size_bucket: g.info.size_bucket,
         industry: g.info.industry,
-        // On conflict, update size/industry if missing?
-        // Let's just upsert and overwrite to ensure fresh data.
     }));
 
     // Upsert companies and return IDs
@@ -137,7 +140,8 @@ export async function processCsvUpload(fileContent: string, preferredModel?: str
     // Now insert leads
     const allLeads = [];
     for (const group of companyGroups.values()) {
-        const companyId = companyIdMap.get(group.info.canonical_key);
+        const scopedKey = `${group.info.canonical_key}-${job.id}`; // Match the scoped key
+        const companyId = companyIdMap.get(scopedKey);
         if (!companyId) continue; // Should not happen
 
         triggers.push({

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Layers, Zap, Database, Brain, Network, CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { Layers, Zap, Database, Brain, Network, CheckCircle2, FileSpreadsheet, ArrowDown, X, Check, Search, GitGraph, Mail } from "lucide-react";
 
 const STEPS = [
     {
@@ -158,7 +158,7 @@ export default function DocsPage() {
                     </h2>
 
                     <p className="text-xl text-[#78716c] max-w-2xl leading-relaxed mb-16">
-                        Given a list of contacts at companies, I needed to find the best people to reach out to. Here's how I built it.
+                        Here's the architecture and decisions I made, hope they make sense!
                     </p>
 
                     {/* Choice Grid */}
@@ -340,9 +340,188 @@ export default function DocsPage() {
                             <Zap size={20} />
                             Launch Ranker
                         </Link>
+                        ```
                     </div>
                 </div>
             </main>
+
+            {/* Funnel Section */}
+            <section className="border-t border-gray-100 bg-white py-32">
+                <div className="max-w-[1000px] mx-auto px-6">
+                    <div className="mb-12 text-center">
+                        <h2 className="text-4xl md:text-5xl font-bold text-[#1A1A1A] mb-4 tracking-tight">It basically does this</h2>
+                        <p className="text-gray-500 text-lg">From raw spreadsheet to prioritized inbox.</p>
+                    </div>
+
+                    <div className="max-w-3xl mx-auto space-y-8">
+
+                        {/* 1. INPUT: Raw Data Visualization */}
+                        <div className="relative group z-30">
+                            {/* Card Body */}
+                            <div className="relative bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                {/* Header */}
+                                <div className="bg-gray-50/50 border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-gray-400">
+                                            <FileSpreadsheet size={18} />
+                                        </div>
+                                        <span className="font-semibold text-sm text-gray-900 tracking-wide">Raw Data</span>
+                                    </div>
+                                    <div className="text-xs font-mono text-gray-400">leads.csv</div>
+                                </div>
+                                {/* Content */}
+                                <div className="p-6 font-mono text-xs md:text-sm overflow-x-auto">
+                                    <div className="grid grid-cols-4 gap-8 text-gray-400 border-b border-gray-100 pb-3 mb-3 min-w-[500px] uppercase tracking-wider text-[10px]">
+                                        <div>Name</div>
+                                        <div>Title</div>
+                                        <div>Company</div>
+                                        <div className="text-right">Size</div>
+                                    </div>
+                                    <div className="space-y-3 min-w-[500px]">
+                                        <div className="grid grid-cols-4 gap-8 text-gray-400 items-center">
+                                            <div className="font-medium text-gray-500">J. Smith</div>
+                                            <div>Recruiter</div>
+                                            <div>Acme Corp</div>
+                                            <div className="text-right">5000+</div>
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-8 text-[#1A1A1A] items-center bg-gray-50 -mx-4 px-4 py-2 rounded-lg border border-gray-100">
+                                            <div className="font-bold">A. Chen</div>
+                                            <div className="font-medium">CTO</div>
+                                            <div>Nexus AI</div>
+                                            <div className="text-right">12</div>
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-8 text-gray-400 items-center">
+                                            <div className="font-medium text-gray-500">B. Davis</div>
+                                            <div>Intern</div>
+                                            <div>Nexus AI</div>
+                                            <div className="text-right">12</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Down Arrow */}
+                        <div className="flex justify-center relative z-40">
+                            <div className="bg-white border border-gray-200 p-2 rounded-full shadow-sm text-gray-300">
+                                <ArrowDown size={16} />
+                            </div>
+                        </div>
+
+                        {/* 2. PROCESS: The Filter/Rank */}
+                        <div className="w-[90%] mx-auto relative group z-20">
+                            <div className="relative bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                <div className="bg-gray-50/50 border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-gray-400">
+                                            <Brain size={18} />
+                                        </div>
+                                        <span className="font-semibold text-sm text-gray-900 tracking-wide">Ranking Logic</span>
+                                    </div>
+                                </div>
+                                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Box 1 (Discard) */}
+                                    <div className="bg-white rounded-lg p-4 border border-gray-100 opacity-60 grayscale">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <span className="font-medium text-gray-500 text-sm">J. Smith</span>
+                                            <span className="text-gray-500 text-[10px] uppercase border border-gray-200 px-1.5 py-0.5 rounded font-medium">Discard</span>
+                                        </div>
+                                        <div className="text-[11px] text-gray-400 font-mono leading-relaxed space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <X size={10} />
+                                                <span>Title Match: 'Recruiter'</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <X size={10} />
+                                                <span>Department: HR</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* Box 2 (Match) */}
+                                    <div className="bg-white rounded-lg p-4 border border-[#1A1A1A] shadow-sm relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-gray-50 to-white -z-10 rounded-bl-3xl"></div>
+                                        <div className="flex items-start justify-between mb-3">
+                                            <span className="font-bold text-[#1A1A1A] text-sm">A. Chen</span>
+                                            <span className="text-[#1A1A1A] text-[10px] uppercase border border-[#1A1A1A] px-1.5 py-0.5 rounded font-bold">Match</span>
+                                        </div>
+                                        <div className="text-[11px] text-gray-600 font-mono leading-relaxed space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <Check size={10} className="text-[#1A1A1A]" strokeWidth={3} />
+                                                <span>Role: Tech Decision Maker</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Check size={10} className="text-[#1A1A1A]" strokeWidth={3} />
+                                                <span>Context: Small Team</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        {/* Down Arrow */}
+                        <div className="flex justify-center relative z-40">
+                            <div className="bg-white border border-gray-200 p-2 rounded-full shadow-sm text-gray-300">
+                                <ArrowDown size={16} />
+                            </div>
+                        </div>
+
+                        {/* 3. OUTPUT: The Result */}
+                        <div className="w-[80%] mx-auto relative group z-0">
+                            <div className="relative bg-[#1A1A1A] text-white border border-gray-900 rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all">
+                                {/* Purple Glow */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 blur-[80px] rounded-full pointer-events-none -mt-32 -mr-32"></div>
+
+                                <div className="bg-white/5 border-b border-white/10 px-6 py-4 flex items-center justify-between relative z-10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-purple-400">
+                                            <Zap size={18} className="fill-purple-400/20" />
+                                        </div>
+                                        <span className="font-semibold text-sm text-white tracking-wide">High Signal Leads</span>
+                                    </div>
+                                </div>
+                                <div className="p-6 relative z-10">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-5">
+                                            <div className="w-12 h-12 bg-white text-black rounded-xl flex items-center justify-center font-bold text-xl shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                                                1
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-lg leading-tight mb-1">Alex Chen</div>
+                                                <div className="text-white/40 text-sm font-light">CTO • Nexus AI</div>
+                                            </div>
+                                        </div>
+                                        <div className="hidden sm:block">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors text-xs font-medium cursor-pointer text-white/60 hover:text-white">
+                                                <span>View Analysis</span>
+                                                <ArrowDown size={12} className="-rotate-90" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Items */}
+                                    <div className="grid grid-cols-3 gap-3 pt-6 border-t border-white/10">
+                                        <div className="flex items-center gap-2 text-[10px] text-white/50 uppercase tracking-wider font-mono">
+                                            <Search size={12} className="text-purple-400" />
+                                            <span>Company Scouted</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[10px] text-white/50 uppercase tracking-wider font-mono">
+                                            <GitGraph size={12} className="text-purple-400" />
+                                            <span>Hierarchy Mapped</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[10px] text-white/50 uppercase tracking-wider font-mono">
+                                            <Mail size={12} className="text-purple-400" />
+                                            <span>Email Generated</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
 
             {/* Footer */}
             <footer className="border-t border-gray-100 py-8">

@@ -343,6 +343,8 @@ export function LeadsTable({ jobId, columns }: LeadsTableProps) {
     )
 }
 
+import { ReasoningDisplay } from "@/components/reasoning-display"
+
 function ExpandedLeadView({ lead }: { lead: any }) {
     const [showRaw, setShowRaw] = useState(false)
 
@@ -372,6 +374,11 @@ function ExpandedLeadView({ lead }: { lead: any }) {
                         </>
                     )}
                 </div>
+            </div>
+
+            {/* Funnel Visualization */}
+            <div className="px-6 pt-4">
+                <ReasoningDisplay lead={lead} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-100">

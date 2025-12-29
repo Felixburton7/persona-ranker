@@ -34,6 +34,13 @@ interface LLMResult {
     is_relevant: boolean;
     role_type: "decision_maker" | "champion" | "irrelevant";
     score: number;
+    rank_within_company: number | null;
+    rubric: {
+        department_fit: number;
+        seniority_fit: number;
+        size_fit: number;
+    };
+    flags: string[];
     reasoning: string;
 }
 
@@ -202,8 +209,20 @@ export const rankCompanyTask = task({
                         const text = response.choices[0]?.message?.content || "";
                         const parsed = extractJsonResponse<LLMResponse>(text);
 
-                        if (!parsed?.results) {
-                            throw new Error("No results in LLM response");
+                        // Strict Validation
+                        if (!parsed || !Array.isArray(parsed.results)) {
+                            throw new Error("Invalid structure: 'results' array missing");
+                        }
+
+                        // Validate each result item
+                        for (const r of parsed.results) {
+                            if (typeof r.id !== 'number' && typeof r.id !== 'string') {
+                                throw new Error(`Invalid result ID: ${r.id}`);
+                            }
+                            if (typeof r.score !== 'number' || r.score < 0 || r.score > 100) {
+                                // Clamp score instead of failing
+                                r.score = Math.max(0, Math.min(100, Number(r.score) || 0));
+                            }
                         }
 
                         // Map short IDs back to real UUIDs and normalize data
@@ -236,13 +255,14 @@ export const rankCompanyTask = task({
                                 id: r.realId,
                                 company_id: companyId,
                                 title: candidate.title,
-                                title_normalized: candidate.title_normalized,
+                                title_normalized: candidate.title_normalized, // Persist normalized title
                                 is_relevant: r.result.is_relevant,
                                 role_type: r.result.role_type,
                                 relevance_score: r.result.score,
+                                rank_within_company: r.result.rank_within_company, // Use LLM rank if available
                                 reasoning: r.result.reasoning,
-                                rubric_scores: {},
-                                flags: [],
+                                rubric_scores: r.result.rubric || {},
+                                flags: r.result.flags || [],
                                 ranked_at: new Date().toISOString(),
                             };
                         });
@@ -268,6 +288,7 @@ export const rankCompanyTask = task({
                             id: r.realId,
                             company_id: companyId,
                             title: meta?.title || "Lead",
+                            title_normalized: meta?.title_normalized || null, // Persist normalized title
                             rank_within_company: idx + 1,
                         };
                     });
@@ -303,6 +324,7 @@ export const rankCompanyTask = task({
                     id: r.realId,
                     company_id: companyId,
                     title: meta?.title || "Lead", // Required by NOT NULL constraint
+                    title_normalized: meta?.title_normalized || null, // Persist normalized title
                     rank_within_company: idx + 1,
                 };
             });
@@ -442,6 +464,9 @@ function mapResults(
                 is_relevant: !!isRelevant,
                 role_type: roleType as any,
                 score: score,
+                rank_within_company: typeof res.rank_within_company === 'number' ? res.rank_within_company : null,
+                rubric: res.rubric || { department_fit: 0, seniority_fit: 0, size_fit: 0 },
+                flags: Array.isArray(res.flags) ? res.flags : [],
                 reasoning: res.reasoning || ""
             }
         });
@@ -458,6 +483,9 @@ function mapResults(
                     is_relevant: false,
                     role_type: "irrelevant",
                     score: 0,
+                    rank_within_company: null,
+                    rubric: { department_fit: 0, seniority_fit: 0, size_fit: 0 },
+                    flags: [],
                     reasoning: "Not processed by model",
                 },
             });

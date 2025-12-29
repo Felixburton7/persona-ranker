@@ -201,15 +201,15 @@ export default function OptimizationPage() {
     // Rotating messages effect for evaluation phase
     useEffect(() => {
         const activeRun = runs.find(r => r.status === "running" || r.status === "pending");
-        
+
         // Only rotate messages when:
         // - There's an active run
         // - First iteration (iterations_completed === 0)
         // - No real-time commentary has been set yet
-        const shouldRotate = activeRun && 
-                            activeRun.iterations_completed === 0 && 
-                            !commentary;
-        
+        const shouldRotate = activeRun &&
+            activeRun.iterations_completed === 0 &&
+            !commentary;
+
         if (!shouldRotate) {
             return;
         }
@@ -561,6 +561,7 @@ export default function OptimizationPage() {
                         Watch AI improve its own lead-ranking instructions. The system <span className="text-[#121212] font-medium">analyzes mistakes</span>,
                         <span className="text-[#121212] font-medium"> learns patterns</span>, and iteratively <span className="text-[#121212] font-medium">refines the prompt</span> for better accuracy.
                     </p>
+
                 </div>
 
                 {/* Workflow Diagram */}
@@ -766,7 +767,7 @@ export default function OptimizationPage() {
                             <div className="relative z-10 flex flex-col h-full justify-between min-h-[250px]">
                                 <div>
                                     <h3 className="text-xl font-bold mb-2">Ready to Optimize</h3>
-                                    
+
                                     {/* Subtle Info Section */}
                                     <div className="mb-3">
                                         <button
@@ -778,7 +779,7 @@ export default function OptimizationPage() {
                                                 {showEvalInfo ? "Hide" : "What"} to upload
                                             </span>
                                         </button>
-                                        
+
                                         {showEvalInfo && (
                                             <div className="mt-2 p-3 bg-white/60 border border-[#E5E5E5] rounded-lg text-xs text-[#78716c] space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
                                                 <p className="font-medium text-[#121212] mb-2">Evaluation Set Format</p>
@@ -801,12 +802,12 @@ export default function OptimizationPage() {
                                             </div>
                                         )}
                                     </div>
-                                    
+
                                     <p className="text-sm text-[#78716c] mb-3">
                                         Run a 5-iteration improvement cycle. The system will benchmark against the Evaluation Set and evolve instructions from v1 to v5.
                                     </p>
-                                    <p className="text-xs text-[#a3a3a3] mb-6">
-                                        Estimation: 5-10 minutes
+                                    <p className="text-base text-[#121212] mb-6 font-medium">
+                                        ⏱️ Takes 5-10 minutes — no need to wait around
                                     </p>
 
                                     {/* Custom Eval Set Upload */}
@@ -1510,14 +1511,6 @@ export default function OptimizationPage() {
                     )
                 }
 
-                <div className="mt-16 mb-10 max-w-2xl mx-auto bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 px-8 shadow transition-all">
-                  <h3 className="text-lg font-bold mb-2 text-yellow-800 flex items-center gap-2">
-                    <Info className="w-5 h-5 text-yellow-500" /> About this project
-                  </h3>
-                  <p className="text-gray-800 text-base mb-2 leading-relaxed">
-                    If there were a bit more time, it would've been cool to extend Company Scout to parse all the websites and online profiles of all the users, find new users, and add them in automatically. At the moment it just does this for the top scoring one; you could also imagine creating a graph connecting people, companies, and so on. Basically: I built this demo in just a few hours and it's definitely not perfect! Hope you like it though 🌟
-                  </p>
-                </div>
             </main >
 
             {/* Reset Confirmation Modal */}
