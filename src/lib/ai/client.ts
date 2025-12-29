@@ -132,10 +132,6 @@ export async function completionWithRetry(
   const models = [params.model, ...fallbackList.filter(m => m !== params.model)];
   const uniqueModels = Array.from(new Set(models));
 
-  // Log mode for debugging
-  if (isStrictGeminiMode) {
-    console.log(`🔒 STRICT GEMINI MODE: Using only Gemini models (${uniqueModels.length} available)`);
-  }
 
   // Normalize session keys
   const keys: SessionKeys = typeof sessionKeys === 'string'

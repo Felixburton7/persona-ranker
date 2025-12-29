@@ -359,7 +359,7 @@ async function evaluatePromptOnEvalSet(
     const totalCompanies = companyGroups.length;
 
     // Use a concurrency limit to avoid rate limits
-    const CONCURRENCY_LIMIT = 5;
+    const CONCURRENCY_LIMIT = 8; // Increased from 5 for better speed
     const results: Array<{ id: string; is_relevant: boolean; rank: number | null }>[] = [];
 
     metadata.set("totalCompanies", totalCompanies);
@@ -368,6 +368,20 @@ async function evaluatePromptOnEvalSet(
     // Process in chunks to maintain concurrency
     for (let i = 0; i < companyGroups.length; i += CONCURRENCY_LIMIT) {
         const chunk = companyGroups.slice(i, i + CONCURRENCY_LIMIT);
+
+        // Calculate progress percentage
+        const progressPercent = Math.round((i / totalCompanies) * 100);
+
+        // Log batch start
+        if (i % (CONCURRENCY_LIMIT * 2) === 0) {
+            await supabase.from("ai_calls").insert({
+                call_type: "eval_progress",
+                model: `Evaluating batch ${Math.floor(i / CONCURRENCY_LIMIT) + 1}/${Math.ceil(totalCompanies / CONCURRENCY_LIMIT)} (${progressPercent}%)`,
+                input_tokens: 0,
+                output_tokens: 0,
+                estimated_cost_usd: 0
+            });
+        }
 
         await Promise.all(chunk.map(async (companyEntry, index) => {
             const [companyName, companyLeads] = companyEntry;
@@ -435,18 +449,13 @@ async function evaluatePromptOnEvalSet(
                     }
                     results.push(companyPredictions);
                 }
-            } catch (error) {
-                console.warn(`Eval failed for company ${companyName}:`, error);
+            } catch (error: any) {
+                console.warn(`Eval failed for company ${companyName}:`, error.message);
+                // Don't crash the whole run, just this company
             } finally {
                 // Log progress for frontend commentary
-                const processed = i + index + 1;
-                await supabase.from("ai_calls").insert({
-                    call_type: "eval_progress",
-                    model: `Evaluating: ${Math.min(processed, totalCompanies)}/${totalCompanies} companies`,
-                    input_tokens: 0,
-                    output_tokens: 0,
-                    estimated_cost_usd: 0
-                });
+                // const processed = i + index + 1;
+                // Only log sparingly to avoid DB spam
             }
         }));
 

@@ -662,14 +662,15 @@ export default function OptimizationPage() {
                                             {formatDuration(displayRun.started_at, null)}
                                         </span>
                                     </div>
-                                    <div className="h-2 w-full bg-[#E5E5E5] rounded-full overflow-hidden">
-                                        <div
-                                            className={cn(
-                                                "h-full bg-[#121212] transition-all duration-500 ease-out",
-                                                !activeRun && "animate-pulse opacity-50"
-                                            )}
-                                            style={{ width: `${Math.max((displayRun.iterations_completed / displayRun.max_iterations) * 100, 5)}%` }}
-                                        />
+                                    <div className="h-2 w-full bg-[#E5E5E5] rounded-full overflow-hidden relative">
+                                        {!activeRun ? (
+                                            <div className="absolute inset-0 bg-gradient-to-r from-[#E5E5E5] via-[#d4d4d4] to-[#E5E5E5] animate-[shimmer_1.5s_infinite] w-full" />
+                                        ) : (
+                                            <div
+                                                className="h-full bg-[#121212] transition-all duration-500 ease-out"
+                                                style={{ width: `${Math.max((displayRun.iterations_completed / displayRun.max_iterations) * 100, 5)}%` }}
+                                            />
+                                        )}
                                     </div>
                                     <div className="flex justify-between text-xs font-mono text-[#78716c] pt-1">
                                         <span>ITERATION {displayRun.iterations_completed + 1}/{displayRun.max_iterations}</span>
@@ -756,7 +757,9 @@ export default function OptimizationPage() {
                                     <div className="pt-6 border-t border-[#E5E5E5]">
                                         <div className="flex items-center justify-between mb-3">
                                             <span className="text-[10px] font-mono text-[#78716c] uppercase">v1 → v5 Evolution</span>
-                                            <span className="text-[10px] font-mono text-[#121212] font-bold">ITERATION {displayRun.iterations_completed + 1}</span>
+                                            <span className="text-[10px] font-mono text-[#121212] font-bold">
+                                                {displayRun.status === 'pending' ? 'PREPARING...' : `ITERATION ${displayRun.iterations_completed + 1}`}
+                                            </span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             {[1, 2, 3, 4, 5].map((v) => (
@@ -764,9 +767,17 @@ export default function OptimizationPage() {
                                                     key={v}
                                                     className={cn(
                                                         "flex-1 h-3 rounded-sm transition-all duration-700",
-                                                        v <= displayRun.iterations_completed ? "bg-[#121212]" :
-                                                            v === displayRun.iterations_completed + 1 ? "bg-[#121212]/20 animate-pulse" : "bg-[#E5E5E5]"
+                                                        displayRun.status === 'pending'
+                                                            ? "bg-[#E5E5E5] animate-pulse"
+                                                            : v <= displayRun.iterations_completed
+                                                                ? "bg-[#121212]"
+                                                                : v === displayRun.iterations_completed + 1
+                                                                    ? "bg-[#121212]/20 animate-pulse"
+                                                                    : "bg-[#E5E5E5]"
                                                     )}
+                                                    style={{
+                                                        animationDelay: displayRun.status === 'pending' ? `${v * 150}ms` : '0ms'
+                                                    }}
                                                 />
                                             ))}
                                         </div>
