@@ -18,7 +18,7 @@ const STEPS = [
     {
         id: 2,
         title: "Company Batching & Context Enrichment",
-        description: "Leads are grouped by company and enriched with web intelligence. Our Scout Agent scrapes company websites to extract signals like funding announcements, hiring patterns, and go-to-market strategies.",
+        description: "Leads are grouped by company and enriched with web intelligence. The Scout Agent scrapes company websites to extract signals like funding announcements, hiring patterns, and go-to-market strategies.",
         tech: "Trigger.dev + Cheerio",
         logo: (
             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="2">
@@ -44,8 +44,8 @@ const STEPS = [
     {
         id: 4,
         title: "Multi-Model LLM Ranking",
-        description: "The system intelligently selects an LLM based on company size and lead count. Large companies use powerful 120B models, small companies use ultra-fast 8B models. Automatic fallback handles rate limits.",
-        tech: "Groq API (8 models)",
+        description: "The system defaults to Gemini Flash for industry-leading speed and accuracy. Users can also select any model from the Groq API to optimize for specific latency or reasoning requirements.",
+        tech: "Gemini (Default) + Groq",
         logo: (
             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#F97316" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
@@ -57,7 +57,7 @@ const STEPS = [
         id: 5,
         title: "Persona-Aware Scoring",
         description: "The LLM evaluates each lead against a detailed persona rubric (department fit, seniority fit, size context fit). It classifies roles as decision_maker, champion, or irrelevant and assigns explicit ranks within each company.",
-        tech: "Groq + Structured JSON",
+        tech: "LLM + Structured JSON",
         logo: (
             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#8B5CF6" strokeWidth="2">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -177,14 +177,14 @@ export default function DocsPage() {
                             </p>
                         </div>
 
-                        {/* Choice 2: Groq */}
+                        {/* Choice 2: Gemini & Groq */}
                         <div className="space-y-4 p-6 border border-transparent hover:border-[#E5E5E5] hover:bg-white transition-all rounded-xl group">
                             <div className="w-12 h-12 bg-[#F9F8F4] rounded-xl flex items-center justify-center mb-2 group-hover:bg-[#121212] group-hover:text-white transition-colors">
                                 <Zap size={24} strokeWidth={2} />
                             </div>
-                            <h3 className="text-xl font-bold text-[#1A1A1A]">Groq as LLM Provider</h3>
+                            <h3 className="text-xl font-bold text-[#1A1A1A]">Gemini & Groq Support</h3>
                             <p className="text-[#78716c] leading-relaxed">
-                                I chose Groq because its <span className="text-[#121212] font-semibold">free tier is generous and easy to use</span>. I route small companies to fast 8B models and big companies to powerful 120B models. Built in automatic fallback when I hit rate limits.
+                                I set Gemini as the default because it's <span className="text-[#121212] font-semibold">fast, reliable, and highly cost-effective</span>. For flexibility, you can swap to any model on the Groq API to handle specific scale or latency requirements.
                             </p>
                         </div>
 
@@ -251,7 +251,7 @@ export default function DocsPage() {
                     {/* Bottom Line */}
                     <div className="mt-12 p-8 bg-[#E5E5E5]/30 rounded-2xl border border-[#E5E5E5]">
                         <p className="text-lg text-[#1A1A1A] leading-relaxed font-medium">
-                            <span className="text-[#78716c] font-normal">Bottom line:</span> I built this for production, not as a prototype. It handles serverless timeouts, rate limits, partial failures, and live feedback—all while keeping costs low.
+                            <span className="text-[#78716c] font-normal">Basically:</span> I built this in a few hours. And definitely is not perfect! Hope you like though!
                         </p>
                     </div>
                 </div>
@@ -269,7 +269,7 @@ export default function DocsPage() {
                         </h1>
 
                         <p className="text-xl text-gray-500 max-w-2xl leading-relaxed">
-                            From raw CSV to ranked intelligence. A breakdown of our autonomous agentic workflow that transforms lead lists into prioritized outreach targets.
+                            From raw CSV to ranked intelligence. A breakdown of the autonomous agentic workflow that transforms lead lists into prioritized outreach targets.
                         </p>
                     </div>
 
@@ -355,7 +355,7 @@ export default function DocsPage() {
                             </span>
                         </div>
                         <div className="flex gap-6">
-                            <span>Powered by Groq + Trigger.dev</span>
+                            <span>Powered by Gemini + Groq + Trigger.dev</span>
                             <span>•</span>
                             <span>Built with Next.js</span>
                         </div>

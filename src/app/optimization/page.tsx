@@ -703,24 +703,25 @@ export default function OptimizationPage() {
                                         ))}
                                     </div>
 
-                                    {/* Live Iteration Progress */}
-                                    {activeRun.improvement_history && activeRun.improvement_history.length > 0 && (
-                                        <div className="pt-4 flex items-end gap-1.5 h-12">
-                                            {activeRun.improvement_history.map((iter, idx) => (
+                                    {/* Evolution Track */}
+                                    <div className="pt-6 border-t border-[#E5E5E5]">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[10px] font-mono text-[#78716c] uppercase">v1 → v5 Evolution</span>
+                                            <span className="text-[10px] font-mono text-[#121212] font-bold">ITERATION {activeRun.iterations_completed + 1}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            {[1, 2, 3, 4, 5].map((v) => (
                                                 <div
-                                                    key={idx}
+                                                    key={v}
                                                     className={cn(
-                                                        "flex-1 rounded-t-sm transition-all duration-500",
-                                                        iter.improved ? "bg-[#121212]" : "bg-[#E5E5E5]"
+                                                        "flex-1 h-3 rounded-sm transition-all duration-700",
+                                                        v <= activeRun.iterations_completed ? "bg-[#121212]" :
+                                                            v === activeRun.iterations_completed + 1 ? "bg-[#121212]/20 animate-pulse" : "bg-[#E5E5E5]"
                                                     )}
-                                                    style={{ height: `${iter.metrics.composite * 100}%` }}
                                                 />
                                             ))}
-                                            {Array.from({ length: activeRun.max_iterations - activeRun.improvement_history.length }).map((_, i) => (
-                                                <div key={i} className="flex-1 bg-[#E5E5E5]/30 h-1 rounded-t-sm" />
-                                            ))}
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
                         ) : (
@@ -812,7 +813,10 @@ export default function OptimizationPage() {
                                                     : (
                                                         <>
                                                             <span className="opacity-70">Model:</span>
-                                                            <span>Default (Auto)</span>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span>Default (Auto)</span>
+                                                                <GeminiIcon className="w-3.5 h-3.5" />
+                                                            </div>
                                                         </>
                                                     )
                                                 }
@@ -1038,54 +1042,134 @@ export default function OptimizationPage() {
                                 </p>
                             </div>
 
-                            {activeRun && activeRun.improvement_history && activeRun.improvement_history.length > 0 ? (
-                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-4">
-                                    {(() => {
-                                        const lastIter = activeRun.improvement_history[activeRun.improvement_history.length - 1];
-                                        return (
-                                            <>
-                                                <div className="flex items-center justify-between">
-                                                    <h4 className="text-sm font-semibold text-[#121212]">Latest Insight</h4>
-                                                    <Badge variant="secondary" className="text-[10px] h-5 bg-[#F9F8F4] border border-[#E5E5E5] text-[#78716c] font-mono">
-                                                        ITERATION {lastIter.iteration}
-                                                    </Badge>
-                                                </div>
-
-                                                <div className="space-y-3">
-                                                    <div className="text-sm text-[#121212] leading-relaxed bg-[#FAFAFA] border border-[#E5E5E5] p-4 rounded-lg shadow-inner">
-                                                        <span className="text-[#78716c] font-mono text-[10px] uppercase block mb-1">Observation</span>
-                                                        <p className="italic font-medium">"{lastIter.gradient?.summary || "Analyzing error patterns..."}"</p>
-                                                    </div>
-
-                                                    {lastIter.gradient?.suggestedImprovements && lastIter.gradient.suggestedImprovements.length > 0 && (
-                                                        <div className="bg-[#B4F7C3]/10 border border-[#B4F7C3]/30 p-4 rounded-lg">
-                                                            <span className="text-[#0f391a] font-mono text-[10px] uppercase block mb-2">Key Improvement</span>
-                                                            <ul className="space-y-2">
-                                                                {lastIter.gradient.suggestedImprovements.slice(0, 2).map((item, idx) => (
-                                                                    <li key={idx} className="text-xs text-[#0f391a] flex items-start gap-2">
-                                                                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                                                                        <span>{item}</span>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            ) : (
-                                <div>
-                                    <h4 className="text-sm font-semibold mb-1 text-[#121212]">Methodology</h4>
-                                    <p className="text-sm text-[#78716c] leading-relaxed">
-                                        Using <span className="font-medium text-[#121212]">Textual Gradient Descent</span>. The system identifies specific cases where the prompt failed, generates a "critique", and rewrites the instructions to fix those edge cases without breaking existing behavior.
-                                    </p>
-                                </div>
-                            )}
+                            <div>
+                                <h4 className="text-sm font-semibold mb-1 text-[#121212]">Methodology</h4>
+                                <p className="text-sm text-[#78716c] leading-relaxed">
+                                    Using <span className="font-medium text-[#121212]">Textual Gradient Descent</span>. The system identifies specific cases where the prompt failed, generates a "critique", and rewrites instructions to fix edge cases without breaking existing behavior.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                {activeRun && activeRun.improvement_history && activeRun.improvement_history.length > 0 && (
+                    <div className="mb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-[#D0C3FC] flex items-center justify-center">
+                                    <Zap className="w-4 h-4 text-[#121212]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold">Latest AI Refinement</h2>
+                                    <p className="text-xs text-[#78716c]">Insights from the most recent optimization iteration</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 bg-[#F9F8F4] border border-[#E5E5E5] rounded-lg p-1">
+                                {activeRun.improvement_history.map(iter => (
+                                    <button
+                                        key={iter.iteration}
+                                        onClick={() => {
+                                            const version = promptVersions.find(v => v.version === iter.iteration);
+                                            if (version) {
+                                                setCurrentPrompt(version);
+                                                setSelectedVersionId(version.id);
+                                            }
+                                        }}
+                                        className={cn(
+                                            "px-3 py-1 text-xs font-mono rounded transition-all",
+                                            currentPrompt?.version === iter.iteration
+                                                ? "bg-[#121212] text-white shadow-md scale-105"
+                                                : "text-[#78716c] hover:bg-[#E5E5E5]"
+                                        )}
+                                    >
+                                        v{iter.iteration}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 bg-[#FAF9F6] border-2 border-[#121212] rounded-xl p-6 shadow-[3px_3px_0px_0px_rgba(18,18,18,1)]">
+                                {(() => {
+                                    const lastIter = activeRun.improvement_history[activeRun.improvement_history.length - 1];
+                                    return (
+                                        <div className="space-y-6">
+                                            <div className="flex items-center justify-between border-b border-[#121212]/10 pb-4">
+                                                <Badge className="bg-[#121212] text-white hover:bg-[#121212] rounded-md px-3 py-1 font-mono text-xs">
+                                                    ITERATION {lastIter.iteration}
+                                                </Badge>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className={cn("w-2 h-2 rounded-full", lastIter.improved ? "bg-green-500" : "bg-amber-500")} />
+                                                    <span className="text-xs font-bold uppercase tracking-wider">
+                                                        {lastIter.improved ? "Improved Performance" : "Refining Logic"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <span className="text-[10px] font-mono font-bold text-[#78716c] uppercase mb-1 block">Root Cause Observation</span>
+                                                    <p className="text-base font-medium leading-relaxed font-serif italic text-[#121212]">
+                                                        "{lastIter.gradient?.summary || "Analyzing error patterns..."}"
+                                                    </p>
+                                                </div>
+
+                                                {lastIter.gradient?.suggestedImprovements && (
+                                                    <div className="grid md:grid-cols-2 gap-4 mt-8">
+                                                        {lastIter.gradient.suggestedImprovements.slice(0, 2).map((improve, idx) => (
+                                                            <div key={idx} className="bg-white border border-[#E5E5E5] p-4 rounded-lg flex items-start gap-3 shadow-sm">
+                                                                <div className="w-6 h-6 rounded-full bg-[#B4F7C3] flex-shrink-0 flex items-center justify-center">
+                                                                    <Check className="w-3 h-3 text-[#0f391a]" />
+                                                                </div>
+                                                                <p className="text-[13px] leading-snug font-medium text-[#121212]">{improve}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            <div className="bg-[#D0C3FC] border-2 border-[#121212] rounded-xl p-6 shadow-[3px_3px_0px_0px_rgba(18,18,18,1)] flex flex-col justify-between">
+                                <div>
+                                    <h4 className="font-bold text-base mb-2 flex items-center gap-2">
+                                        <Activity className="w-4 h-4" />
+                                        Performance Delta
+                                    </h4>
+                                    <p className="text-sm text-[#121212]/70 mb-8 leading-snug">
+                                        Comparison of metrics between v{activeRun.iterations_completed} and v{activeRun.iterations_completed + 1}.
+                                    </p>
+
+                                    <div className="space-y-6">
+                                        {[
+                                            { label: 'Precision', val: activeRun.improvement_history[activeRun.improvement_history.length - 1].metrics.precision },
+                                            { label: 'Recall', val: activeRun.improvement_history[activeRun.improvement_history.length - 1].metrics.recall },
+                                            { label: 'NDCG@3', val: activeRun.improvement_history[activeRun.improvement_history.length - 1].metrics.ndcgAt3 }
+                                        ].map((m, i) => (
+                                            <div key={i} className="space-y-1.5">
+                                                <div className="flex justify-between text-[11px] font-bold font-mono uppercase">
+                                                    <span>{m.label}</span>
+                                                    <span>{(m.val * 100).toFixed(1)}%</span>
+                                                </div>
+                                                <div className="h-2 bg-white/40 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-[#121212] transition-all duration-1000" style={{ width: `${m.val * 100}%` }} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="mt-8 pt-6 border-t border-[#121212]/10">
+                                    <div className="flex items-center gap-2 text-xs font-bold font-mono">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#121212] animate-ping" />
+                                        ITERATIVE IMPROVEMENT IN PROGRESS
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Current Active Prompt (New Location, styled like history) */}
                 <div className="space-y-6 mb-24">

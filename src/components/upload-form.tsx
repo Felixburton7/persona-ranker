@@ -186,7 +186,7 @@ export function UploadForm({ onJobCreated, jobId }: UploadFormProps) {
             <div className="space-y-2">
                 <h3 className="font-semibold text-lg">Upload Leads CSV</h3>
                 <p className="text-sm text-stone-500">
-                    Upload a CSV file containing leads to begin the ranking process.
+                    Upload a CSV file (e.g., <code className="bg-stone-100 px-1 rounded text-stone-700">leads.csv - Sheet1.csv</code>) containing leads to begin the ranking process.
                 </p>
             </div>
 
@@ -256,7 +256,10 @@ export function UploadForm({ onJobCreated, jobId }: UploadFormProps) {
                                 : (
                                     <>
                                         <span className="opacity-70">Model:</span>
-                                        <span>Default (Auto)</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span>Default (Auto)</span>
+                                            <GeminiIcon className="w-3.5 h-3.5" />
+                                        </div>
                                     </>
                                 )
                             }

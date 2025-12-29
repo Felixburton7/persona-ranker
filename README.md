@@ -26,14 +26,12 @@ pnpm dev
 
 ### LLM Provider
 
-Using **Groq** with **intelligent multi-model selection**:
+The system defaults to **Gemini Flash** for high-quality, cost-effective ranking. It also supports **Groq** for ultra-fast processing with a variety of models:
 
-- **Large companies (100+ leads)**: `openai/gpt-oss-120b` (120B params)
-- **Medium-large (50-100)**: `llama-3.3-70b-versatile` (70B params)
-- **Medium (20-50)**: `qwen/qwen3-32b` (32B params)
-- **Small (<20)**: `llama-3.1-8b-instant` (8B params, ultra-fast)
+- **Large companies (100+ leads)**: `llama-3.3-70b-versatile` or `openai/gpt-oss-120b` (if available via Groq)
+- **Small companies (<20)**: `llama-3.1-8b-instant` (ultra-fast)
 
-**Automatic fallback chain**: If a model hits rate limits (429) or payload size limits (413), the system automatically rotates through 8 different models to ensure completion.
+**Automatic fallback chain**: If the primary model hits rate limits (429) or payload size limits (413), the system can rotate through available models to ensure completion.
 
 Test model availability: `node test-models.mjs`
 
