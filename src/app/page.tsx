@@ -66,11 +66,11 @@ export default function Home() {
               </span>
             </div>
             <h1 className={`leading-[0.95] tracking-tight font-bold text-[#0F0F0F] transition-all duration-700 ${jobId ? 'text-2xl pt-0' : 'text-5xl lg:text-7xl pt-4'}`}>
-              Data to revenue,<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500">autonomous.</span>
+              Leads to revenue,<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500">autonomously.</span>
             </h1>
             <p className={`text-gray-500 leading-relaxed max-w-lg font-light transition-all duration-700 ${jobId ? 'text-sm mb-4 opacity-80' : 'text-lg mb-10 opacity-100'}`}>
-              Upload your leads list to deploy autonomous research agents. We'll map organization hierarchies and score buying intent for every account.
+              Upload your leads list to deploy autonomous research agents. This project maps organization hierarchies and scores buying intent for every account.
             </p>
           </header>
 

@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "lead.ranker | AI-Native Lead Intelligence",
-  description: "Data to revenue, autonomous. Turn lead lists into ranked intelligence with our multi-agent AI system.",
+  description: "Leads to revenue, autonomously. Turn lead lists into ranked intelligence with our multi-agent AI system.",
 };
 
 export default function RootLayout({

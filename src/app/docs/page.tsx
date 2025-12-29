@@ -158,7 +158,7 @@ export default function DocsPage() {
                     </h2>
 
                     <p className="text-xl text-[#78716c] max-w-2xl leading-relaxed mb-16">
-                        Given a list of contacts at companies, we needed to find the best people to reach out to. Here's how we built it.
+                        Given a list of contacts at companies, I needed to find the best people to reach out to. Here's how I built it.
                     </p>
 
                     {/* Choice Grid */}
@@ -268,7 +268,7 @@ export default function DocsPage() {
                             Inside the <span className="text-gray-400">Engine</span>
                         </h1>
 
-                        <p className="text-xl text-gray-500 max-w-2xl leading-relaxed">
+                        <p className="text-base text-gray-500 max-w-2xl leading-relaxed">
                             From raw CSV to ranked intelligence. A breakdown of the autonomous agentic workflow that transforms lead lists into prioritized outreach targets.
                         </p>
                     </div>
@@ -286,7 +286,7 @@ export default function DocsPage() {
                                     <div className="flex-1 pt-1">
                                         {/* Title & Number */}
                                         <div className="flex items-center gap-3 mb-3">
-                                            <h3 className="text-2xl font-bold text-[#1A1A1A]">{step.title}</h3>
+                                            <h3 className="text-xl font-bold text-[#1A1A1A]">{step.title}</h3>
                                             <span className="hidden md:inline-block h-px w-10 bg-gray-100"></span>
                                             <span className="text-xs font-mono text-gray-400 uppercase tracking-widest border border-gray-100 px-2 py-0.5 rounded">
                                                 Step {String(step.id).padStart(2, "0")}
@@ -294,7 +294,7 @@ export default function DocsPage() {
                                         </div>
 
                                         {/* Description */}
-                                        <p className="text-gray-500 leading-relaxed text-lg mb-6 max-w-lg">
+                                        <p className="text-gray-500 leading-relaxed text-base mb-6 max-w-lg">
                                             {step.description}
                                         </p>
                                     </div>
@@ -327,9 +327,9 @@ export default function DocsPage() {
 
                     {/* Bottom CTA */}
                     <div className="mt-32 p-12 bg-gray-50 rounded-3xl text-center border border-gray-100">
-                        <h3 className="text-2xl font-bold mb-4">Ready to see it in action?</h3>
+                        <h3 className="text-xl font-bold mb-4">Ready to see it in action?</h3>
 
-                        <p className="text-gray-500 mb-8">
+                        <p className="text-sm text-gray-500 mb-8">
                             Upload your lead CSV and watch the autonomous ranking system in real-time.
                         </p>
 

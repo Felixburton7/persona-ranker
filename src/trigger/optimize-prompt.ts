@@ -93,6 +93,8 @@ export const optimizePromptTask = task({
             });
 
             // 3. Get or create initial prompt version
+            // IMPORTANT: We start with the user's actual prompt from the database (if it exists)
+            // This is the prompt they've been using/optimizing, not the codebase template
             let { data: activePrompt } = await supabase
                 .from("prompt_versions")
                 .select("*")
@@ -100,7 +102,17 @@ export const optimizePromptTask = task({
                 .single();
 
             if (!activePrompt) {
-                // Create initial prompt version from current template
+                // Fallback: Only create from codebase template if no prompt exists in database
+                // This should rarely happen - normally the user will have an active prompt
+                console.log("No active prompt found in database, creating initial version from codebase template");
+                await supabase.from("ai_calls").insert({
+                    call_type: "eval_progress",
+                    model: "No active prompt found. Creating initial version from codebase template...",
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    estimated_cost_usd: 0
+                });
+
                 const { prompt: initialPrompt } = buildRankingPrompt(
                     { name: "PLACEHOLDER", size_bucket: "smb", employee_range: "51-200" },
                     [{ id: "test", full_name: "Test User", title: "VP Sales" }]
@@ -118,6 +130,16 @@ export const optimizePromptTask = task({
 
                 if (error) throw error;
                 activePrompt = created;
+            } else {
+                // Log which prompt we're starting with
+                console.log(`Starting optimization with existing prompt version ${activePrompt.version} (ID: ${activePrompt.id})`);
+                await supabase.from("ai_calls").insert({
+                    call_type: "eval_progress",
+                    model: `Starting optimization with your current prompt (version ${activePrompt.version}). This will be evaluated and improved across ${maxIterations} iterations.`,
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    estimated_cost_usd: 0
+                });
             }
 
             let currentPrompt = activePrompt.prompt_text;

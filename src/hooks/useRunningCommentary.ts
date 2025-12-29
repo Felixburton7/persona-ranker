@@ -164,7 +164,7 @@ export function useRunningCommentary(jobId: string | null) {
                     // If we see it is excluded, and we haven't announced it yet (or it just flipped), add to queue.
                     if (newItem.excluded_by_gate && !announcedLeadIds.current.has(newItem.id + '-excluded')) {
                         announcedLeadIds.current.add(newItem.id + '-excluded');
-                        activityQueue.current.push(`Excluded ${getName()}: ${newItem.exclusion_reason || "Criteria mismatch"}`);
+                        activityQueue.current.push(`Filtered out ${getName()}: ${newItem.exclusion_reason || "Criteria mismatch"}`);
                         return;
                     }
 
