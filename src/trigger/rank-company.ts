@@ -1,0 +1,493 @@
+/**
+ * rank-company.ts - Ranks leads for a single company
+ * 
+ * Key design decisions:
+ * 1. Uses SHORT NUMERIC IDs (1,2,3) in prompts to prevent LLM hallucination
+ * 2. Batches leads to stay within context limits
+ * 3. Strict provider mode (Gemini-only if Gemini selected)
+ * 4. Graceful error handling with partial completion support
+ */
+
+import { task, metadata, tasks } from "@trigger.dev/sdk/v3";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { extractJsonResponse, estimateCost, completionWithRetry, LLM_MODEL } from "../lib/ai/client";
+import { buildRankingPrompt, CandidateInput } from "../lib/ranking/prompt";
+import { prefilterLead } from "../lib/ranking/prefilter";
+import { normalizeTitle } from "../lib/normalization/title";
+import { companyScoutTask } from "./company-scout";
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface RankCompanyPayload {
+    jobId: string;
+    companyId: string;
+    useCompanyScout?: boolean;
+    preferredModel?: string;
+    apiKey?: string;
+    geminiApiKey?: string;
+}
+
+interface LLMResult {
+    id: number;  // Short ID (1, 2, 3...)
+    is_relevant: boolean;
+    role_type: "decision_maker" | "champion" | "irrelevant";
+    score: number;
+    reasoning: string;
+}
+
+interface LLMResponse {
+    results: LLMResult[];
+}
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const BATCH_SIZE = 15;  // Leads per batch (smaller = more reliable)
+const MAX_RETRY_ATTEMPTS = 3;
+
+// ============================================================================
+// MAIN TASK
+// ============================================================================
+
+export const rankCompanyTask = task({
+    id: "rank-company",
+    maxDuration: 300,
+    retry: { maxAttempts: 3, minTimeoutInMs: 1000, maxTimeoutInMs: 10000 },
+
+    run: async (payload: RankCompanyPayload) => {
+        const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_KEY!
+        );
+
+        const { jobId, companyId, preferredModel, apiKey, geminiApiKey, useCompanyScout } = payload;
+        const sessionKeys = { groq: apiKey, gemini: geminiApiKey };
+        const selectedModel = preferredModel || LLM_MODEL;
+
+        try {
+            // Update job status to running (only if still pending)
+            await supabase
+                .from("ranking_jobs")
+                .update({ status: "running" })
+                .eq("id", jobId)
+                .eq("status", "pending");
+
+            // 1. Fetch company and leads
+            const { data: company, error: companyError } = await supabase
+                .from("companies")
+                .select("*")
+                .eq("id", companyId)
+                .single();
+
+            if (companyError || !company) {
+                throw new Error(`Company ${companyId} not found`);
+            }
+
+            const { data: leads, error: leadsError } = await supabase
+                .from("leads")
+                .select("*")
+                .eq("company_id", companyId);
+
+            if (leadsError || !leads?.length) {
+                throw new Error(`No leads for company ${companyId}`);
+            }
+
+            metadata.set("company", company.name);
+            metadata.set("totalLeads", leads.length);
+
+            // 2. Pre-filter leads (deterministic exclusions)
+            const candidates: Array<typeof leads[0] & { title_normalized: string }> = [];
+            const excluded: any[] = [];
+
+            for (const lead of leads) {
+                const normalizedTitle = normalizeTitle(lead.title);
+                const filter = prefilterLead(lead.title, normalizedTitle, company.size_bucket);
+
+                if (filter.shouldExclude) {
+                    excluded.push({
+                        id: lead.id,
+                        title: lead.title,
+                        title_normalized: normalizedTitle,
+                        excluded_by_gate: true,
+                        exclusion_reason: filter.reason,
+                        is_relevant: false,
+                        role_type: "irrelevant",
+                        relevance_score: 0,
+                        reasoning: `Excluded: ${filter.reason}`,
+                        ranked_at: new Date().toISOString(),
+                    });
+                } else {
+                    candidates.push({ ...lead, title_normalized: normalizedTitle });
+                }
+            }
+
+            // Save excluded leads
+            if (excluded.length > 0) {
+                await supabase.from("leads").upsert(excluded, { onConflict: "id" });
+                await updateJobProgress(supabase, jobId, 0, excluded.length);
+            }
+
+            // 3. If no candidates, we're done with this company
+            if (candidates.length === 0) {
+                await updateJobProgress(supabase, jobId, 1, 0);
+
+                // Check if ALL companies are done
+                const { data: jobData } = await supabase
+                    .from("ranking_jobs")
+                    .select("total_companies, processed_companies")
+                    .eq("id", jobId)
+                    .single();
+
+                if (jobData && jobData.processed_companies >= jobData.total_companies) {
+                    await supabase
+                        .from("ranking_jobs")
+                        .update({
+                            status: "completed",
+                            completed_at: new Date().toISOString(),
+                        })
+                        .eq("id", jobId);
+                }
+
+                return { status: "success", companyId, leadsRanked: leads.length, relevant: 0 };
+            }
+
+            // 4. Process candidates in batches
+            const batches = chunkArray(candidates, BATCH_SIZE);
+            const allResults: Array<{ realId: string; result: LLMResult }> = [];
+            let rateLimitHit = false;
+
+            console.log(`Processing ${candidates.length} candidates in ${batches.length} batches using ${selectedModel}`);
+
+            for (const [batchIdx, batch] of batches.entries()) {
+                if (rateLimitHit) break;
+
+                // Build prompt with short IDs
+                const candidateInputs: CandidateInput[] = batch.map(c => ({
+                    id: c.id,
+                    full_name: c.full_name,
+                    title: c.title,
+                }));
+
+                const { prompt, idMap } = buildRankingPrompt(company, candidateInputs);
+
+                // Call LLM with retry
+                let success = false;
+                for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS && !success; attempt++) {
+                    try {
+                        const response = await completionWithRetry({
+                            model: selectedModel,
+                            messages: [{ role: "user", content: prompt }],
+                            temperature: 0,
+                            response_format: { type: "json_object" },
+                        }, sessionKeys);
+
+                        // Log AI call
+                        const inputTokens = response.usage?.prompt_tokens || 0;
+                        const outputTokens = response.usage?.completion_tokens || 0;
+                        await supabase.from("ai_calls").insert({
+                            job_id: jobId,
+                            company_id: companyId,
+                            call_type: "ranking_batch",
+                            model: response.model || selectedModel,
+                            input_tokens: inputTokens,
+                            output_tokens: outputTokens,
+                            estimated_cost_usd: estimateCost(response.model || selectedModel, inputTokens, outputTokens),
+                            latency_ms: 0,
+                        });
+
+                        // Parse response
+                        const text = response.choices[0]?.message?.content || "";
+                        const parsed = extractJsonResponse<LLMResponse>(text);
+
+                        if (!parsed?.results) {
+                            throw new Error("No results in LLM response");
+                        }
+
+                        // Map short IDs back to real UUIDs and normalize data
+                        const batchResults = mapResults(parsed.results, idMap, batch);
+                        allResults.push(...batchResults);
+
+                        success = true;
+
+                    } catch (e: any) {
+                        console.warn(`Batch ${batchIdx + 1} attempt ${attempt} failed:`, e.message?.substring(0, 100));
+
+                        if (e.message?.includes("models exhausted") || e.provider) {
+                            rateLimitHit = true;
+                            break;
+                        }
+
+                        if (attempt < MAX_RETRY_ATTEMPTS) {
+                            await sleep(2000 * attempt);
+                        }
+                    }
+                }
+
+                if (success) {
+                    // Save batch results immediately
+                    const updates = allResults
+                        .filter(r => batch.some(c => c.id === r.realId))
+                        .map(r => {
+                            const candidate = batch.find(c => c.id === r.realId)!;
+                            return {
+                                id: r.realId,
+                                company_id: companyId,
+                                title: candidate.title,
+                                title_normalized: candidate.title_normalized,
+                                is_relevant: r.result.is_relevant,
+                                role_type: r.result.role_type,
+                                relevance_score: r.result.score,
+                                reasoning: r.result.reasoning,
+                                rubric_scores: {},
+                                flags: [],
+                                ranked_at: new Date().toISOString(),
+                            };
+                        });
+
+                    if (updates.length > 0) {
+                        await supabase.from("leads").upsert(updates, { onConflict: "id" });
+                        await updateJobProgress(supabase, jobId, 0, updates.length);
+                    }
+
+                    // Assign temporary ranks based on current results (for live UI updates)
+                    const batchCandidates = new Map(batch.map(c => [c.id, c]));
+                    const currentRelevant = allResults.filter(r =>
+                        r.result.is_relevant === true ||
+                        r.result.score > 0 ||
+                        ["decision_maker", "champion"].includes(r.result.role_type)
+                    );
+
+                    currentRelevant.sort((a, b) => (b.result.score || 0) - (a.result.score || 0));
+
+                    const tempRankUpdates = currentRelevant.map((r, idx) => {
+                        const meta = batchCandidates.get(r.realId);
+                        return {
+                            id: r.realId,
+                            company_id: companyId,
+                            title: meta?.title || "Lead",
+                            rank_within_company: idx + 1,
+                        };
+                    });
+
+                    if (tempRankUpdates.length > 0) {
+                        try {
+                            await supabase.from("leads").upsert(tempRankUpdates, { onConflict: "id" });
+                        } catch (e) {
+                            console.warn("Silent failure on temp rank update (will be fixed in final step)");
+                        }
+                    }
+                }
+            }
+
+            // 5. Compute final ranks across ALL results from all batches
+            const relevantResults = allResults.filter(r =>
+                r.result.is_relevant === true ||
+                r.result.score > 0 ||
+                ["decision_maker", "champion"].includes(r.result.role_type)
+            );
+
+            relevantResults.sort((a, b) => (b.result.score || 0) - (a.result.score || 0));
+
+            console.log(`Assigning final ranks to ${relevantResults.length} leads for company ${company.name}`);
+
+            // Create a lookup map for candidate metadata to satisfy NOT NULL constraints during upsert
+            const candidateMap = new Map(candidates.map(c => [c.id, c]));
+
+            // Assign ranks and update
+            const rankUpdates = relevantResults.map((r, idx) => {
+                const meta = candidateMap.get(r.realId);
+                return {
+                    id: r.realId,
+                    company_id: companyId,
+                    title: meta?.title || "Lead", // Required by NOT NULL constraint
+                    rank_within_company: idx + 1,
+                };
+            });
+
+            if (rankUpdates.length > 0) {
+                console.log(`Updating ${rankUpdates.length} leads with ranks 1-${rankUpdates.length}`);
+                const { error: rankError } = await supabase.from("leads").upsert(rankUpdates, { onConflict: "id" });
+                if (rankError) {
+                    console.error("❌ Failed to save final ranks:", rankError);
+                } else {
+                    console.log(`✅ Final ranks successfully saved to database`);
+
+                    // Trigger Company Scout if enabled
+                    if (useCompanyScout !== false) {
+                        console.log(`🚀 Triggering Company Scout for ${company.name}`);
+                        await tasks.trigger<typeof companyScoutTask>("company-scout", {
+                            jobId,
+                            companyId,
+                            preferredModel: selectedModel,
+                            apiKey,
+                            geminiApiKey
+                        });
+                    }
+                }
+            } else {
+                console.log(`⚠️ No candidates qualified for ranking`);
+            }
+
+            // 6. Mark company complete
+            await updateJobProgress(supabase, jobId, 1, 0);
+            await supabase.from("ai_calls").insert({
+                job_id: jobId,
+                company_id: companyId,
+                call_type: "company_completion",
+                model: "System",
+                input_tokens: 0,
+                output_tokens: 0,
+                estimated_cost_usd: 0,
+                latency_ms: 0,
+            });
+
+            // 7. Check if ALL companies are done - if so, mark job as completed
+            const { data: jobData } = await supabase
+                .from("ranking_jobs")
+                .select("total_companies, processed_companies")
+                .eq("id", jobId)
+                .single();
+
+            if (jobData && jobData.processed_companies >= jobData.total_companies) {
+                console.log(`✅ All ${jobData.total_companies} companies processed. Marking job as completed.`);
+                await supabase
+                    .from("ranking_jobs")
+                    .update({
+                        status: "completed",
+                        completed_at: new Date().toISOString(),
+                    })
+                    .eq("id", jobId);
+            }
+
+            return {
+                status: "success",
+                companyId,
+                leadsRanked: leads.length,
+                relevant: relevantResults.length,
+            };
+
+        } catch (error: any) {
+            console.error(`rank-company failed for ${companyId}:`, error);
+
+            // Update job with error
+            await supabase
+                .from("ranking_jobs")
+                .update({
+                    status: "failed",
+                    error: error.message?.substring(0, 500),
+                })
+                .eq("id", jobId);
+
+            throw error;
+        }
+    },
+});
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Maps LLM results (with short IDs) back to real UUIDs.
+ * Handles missing/invalid IDs gracefully.
+ */
+function mapResults(
+    results: LLMResult[],
+    idMap: Map<number, string>,
+    batch: Array<{ id: string }>
+): Array<{ realId: string; result: LLMResult }> {
+    const mapped: Array<{ realId: string; result: LLMResult }> = [];
+    const seenIds = new Set<string>();
+
+    // Process returned results
+    for (const rawRes of results) {
+        const res = rawRes as any;
+        const realId = idMap.get(Number(res.id)); // Coerce to number just in case
+
+        if (!realId) {
+            console.warn(`Invalid short ID ${res.id} - skipping`);
+            continue;
+        }
+
+        if (seenIds.has(realId)) {
+            console.warn(`Duplicate ID ${res.id} - skipping`);
+            continue;
+        }
+
+        // Normalize is_relevant based on score and string coercion
+        let isRelevant = res.is_relevant;
+        if (typeof isRelevant === "string") {
+            isRelevant = isRelevant.toLowerCase() === "true";
+        }
+
+        // If score is high but is_relevant is false/missing, trust the score
+        const score = Number(res.score) || 0;
+        if (score >= 50 && !isRelevant) {
+            isRelevant = true;
+        }
+
+        // Ensure role_type is valid
+        const roleType = ["decision_maker", "champion", "irrelevant"].includes(res.role_type)
+            ? res.role_type
+            : (score >= 90 ? "decision_maker" : score >= 50 ? "champion" : "irrelevant");
+
+        seenIds.add(realId);
+        mapped.push({
+            realId,
+            result: {
+                id: Number(res.id),
+                is_relevant: !!isRelevant,
+                role_type: roleType as any,
+                score: score,
+                reasoning: res.reasoning || ""
+            }
+        });
+    }
+
+    // Fill missing candidates with defaults
+    for (const candidate of batch) {
+        if (!seenIds.has(candidate.id)) {
+            console.warn(`Missing result for candidate - filling default`);
+            mapped.push({
+                realId: candidate.id,
+                result: {
+                    id: 0,
+                    is_relevant: false,
+                    role_type: "irrelevant",
+                    score: 0,
+                    reasoning: "Not processed by model",
+                },
+            });
+        }
+    }
+
+    return mapped;
+}
+
+function chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+        chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+}
+
+async function updateJobProgress(
+    supabase: SupabaseClient,
+    jobId: string,
+    companies: number,
+    leads: number
+) {
+    await supabase.rpc("increment_job_progress", {
+        p_job_id: jobId,
+        p_companies: companies,
+        p_leads: leads,
+    });
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
