@@ -129,7 +129,7 @@ export default function DocsPage() {
                             Documentation
                         </Link>
                         <Link href="/optimization" className="hover:text-black cursor-pointer transition-colors">
-                            Optimization
+                            Prompt Optimization
                         </Link>
                         <Link href="/" className="hover:text-black cursor-pointer transition-colors">
                             Launch App

@@ -33,7 +33,7 @@ export default function ContactPage() {
                             Documentation
                         </Link>
                         <Link href="/optimization" className="text-sm font-medium text-[#78716c] hover:text-[#121212] transition-colors">
-                            Optimization
+                            Prompt Optimization
                         </Link>
                         <Link href="/contact" className="text-sm font-medium text-[#121212]">
                             Contact us

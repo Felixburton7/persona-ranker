@@ -463,7 +463,7 @@ export default function OptimizationPage() {
                             Documentation
                         </Link>
                         <Link href="/optimization" className="text-sm font-medium text-[#121212]">
-                            Optimization
+                            Prompt Optimization
                         </Link>
                         <Link href="/" className="text-sm font-medium text-[#78716c] hover:text-[#121212] transition-colors">
                             Launch App

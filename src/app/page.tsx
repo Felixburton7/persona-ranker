@@ -46,7 +46,7 @@ export default function Home() {
               Documentation
             </Link>
             <Link href="/optimization" className="hover:text-black cursor-pointer transition-colors">
-              Optimization
+              Prompt Optimization
             </Link>
             <Link href="/contact" className="hover:text-black cursor-pointer transition-colors">
               Contact us
