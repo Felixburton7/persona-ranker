@@ -136,7 +136,7 @@ export const columns: ColumnDef<Lead>[] = [
             const isSkipped = row.original.role_type === 'skipped';
             return (
                 <div
-                    className={`max-w-xs text-xs ${isSkipped ? "text-red-600 font-medium" : "truncate text-muted-foreground"}`}
+                    className={`max-w-[13rem] text-xs ${isSkipped ? "text-red-600 font-medium" : "truncate text-muted-foreground"}`}
                     title={row.original.reasoning || ""}
                 >
                     {row.original.reasoning}

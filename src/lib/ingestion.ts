@@ -27,6 +27,31 @@ export async function processCsvUpload(fileContent: string, preferredModel?: str
 
     if (!rows.length) throw new Error("CSV is empty");
 
+    // CSV columns validation
+    const requiredColumns = [
+        "account_name",
+        "lead_first_name",
+        "lead_last_name",
+        "lead_job_title",
+        "account_domain",
+        "account_employee_range",
+        "account_industry"
+    ];
+    // Check for missing columns
+    const actualColumns = rows.length > 0 ? Object.keys(rows[0]) : [];
+    const missing = requiredColumns.filter(col => !actualColumns.includes(col));
+    if (missing.length > 0) {
+        throw new Error(
+            [
+                "❌ Invalid CSV format!\n",
+                "Missing column(s):",
+                ...missing.map(col => `  • ${col}`),
+                "\nExpected columns:",
+                `  ${requiredColumns.join(", ")}`,
+            ].join("\n")
+        );
+    }
+
     // 2. Group by Company (using canonical key)
     const companyGroups = new Map<string, {
         info: {

@@ -1509,6 +1509,15 @@ export default function OptimizationPage() {
                         </div>
                     )
                 }
+
+                <div className="mt-16 mb-10 max-w-2xl mx-auto bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 px-8 shadow transition-all">
+                  <h3 className="text-lg font-bold mb-2 text-yellow-800 flex items-center gap-2">
+                    <Info className="w-5 h-5 text-yellow-500" /> About this project
+                  </h3>
+                  <p className="text-gray-800 text-base mb-2 leading-relaxed">
+                    If there were a bit more time, it would've been cool to extend Company Scout to parse all the websites and online profiles of all the users, find new users, and add them in automatically. At the moment it just does this for the top scoring one; you could also imagine creating a graph connecting people, companies, and so on. Basically: I built this demo in just a few hours and it's definitely not perfect! Hope you like it though 🌟
+                  </p>
+                </div>
             </main >
 
             {/* Reset Confirmation Modal */}
