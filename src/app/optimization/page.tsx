@@ -36,6 +36,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from "@/lib/utils";
+import { SUPPORTED_MODELS, SavedApiKey } from "@/lib/constants";
 
 interface OptimizationRun {
     id: string;
@@ -83,22 +84,7 @@ interface PromptVersion {
     parent_version_id?: string | null;
 }
 
-interface SavedApiKey {
-    id: string;
-    provider: string;
-    model_name: string;
-    display_name?: string;
-}
-
-const SUPPORTED_MODELS = [
-    { name: "llama-3.3-70b-versatile", displayName: "Llama 3.3 70B (Versatile)", description: "Balanced - Best for general use", provider: "Meta" },
-    { name: "llama-3.1-8b-instant", displayName: "Llama 3.1 8B (Instant)", description: "Fastest - Great for small companies", provider: "Meta" },
-    { name: "qwen/qwen3-32b", displayName: "Qwen 3 32B", description: "Efficient - 32B params", provider: "Alibaba" },
-    { name: "groq/compound", displayName: "Groq Compound", description: "Groq native", provider: "Groq" },
-    { name: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash", description: "Google's latest & fastest", provider: "Google" },
-    { name: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro", description: "Google's most capable", provider: "Google" },
-    { name: "gemini-2.0-flash", displayName: "Gemini 2.0 Flash", description: "Google's stable model", provider: "Google" },
-];
+// SavedApiKey and SUPPORTED_MODELS imported from @/lib/constants
 
 // Rotating messages for evaluation phase
 const EVALUATION_MESSAGES = [
@@ -482,6 +468,18 @@ export default function OptimizationPage() {
     const activeRun = runs.find(r => r.status === "running" || r.status === "pending");
     const completedRuns = runs.filter(r => r.status === "completed" || r.status === "failed");
 
+    const skeletonRun: OptimizationRun = {
+        id: "loading",
+        status: "pending",
+        max_iterations: 5,
+        iterations_completed: 0,
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        improvement_history: []
+    };
+
+    const displayRun = activeRun || (starting ? skeletonRun : null);
+
     return (
         <div className="min-h-screen bg-[#F9F8F4] text-[#121212] font-sans selection:bg-[#D0C3FC] selection:text-[#121212]">
             {/* Navigation */}
@@ -648,7 +646,8 @@ export default function OptimizationPage() {
                         {/* Decorative Background */}
                         <div className="absolute -right-12 -top-12 w-48 h-48 bg-[#D0C3FC] rounded-full blur-[80px] opacity-50" />
 
-                        {activeRun ? (
+
+                        {displayRun ? (
                             <div className="relative z-10 space-y-8">
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between text-sm font-medium mb-2">
@@ -657,21 +656,26 @@ export default function OptimizationPage() {
                                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                                             </span>
-                                            {activeRun.status === 'pending' ? 'Booting Optimization' : 'Running Optimization'}
+                                            {displayRun.status === 'pending' ? 'Booting Optimization' : 'Running Optimization'}
                                         </span>
                                         <span className="font-mono text-[#78716c]">
-                                            {formatDuration(activeRun.started_at, null)}
+                                            {formatDuration(displayRun.started_at, null)}
                                         </span>
                                     </div>
                                     <div className="h-2 w-full bg-[#E5E5E5] rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-[#121212] transition-all duration-500 ease-out"
-                                            style={{ width: `${Math.max((activeRun.iterations_completed / activeRun.max_iterations) * 100, 5)}%` }}
+                                            className={cn(
+                                                "h-full bg-[#121212] transition-all duration-500 ease-out",
+                                                !activeRun && "animate-pulse opacity-50"
+                                            )}
+                                            style={{ width: `${Math.max((displayRun.iterations_completed / displayRun.max_iterations) * 100, 5)}%` }}
                                         />
                                     </div>
                                     <div className="flex justify-between text-xs font-mono text-[#78716c] pt-1">
-                                        <span>ITERATION {activeRun.iterations_completed + 1}/{activeRun.max_iterations}</span>
-                                        <span>{Math.round((activeRun.iterations_completed / activeRun.max_iterations) * 100)}% COMPLETE</span>
+                                        <span>ITERATION {displayRun.iterations_completed + 1}/{displayRun.max_iterations}</span>
+                                        <span>
+                                            {!activeRun ? "INITIALIZING..." : `${Math.round((displayRun.iterations_completed / displayRun.max_iterations) * 100)}% COMPLETE`}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -681,9 +685,9 @@ export default function OptimizationPage() {
                                             <div className="w-1.5 h-1.5 rounded-full bg-[#D0C3FC] animate-pulse" />
                                             Live Activity Log
                                         </div>
-                                        {activeRun.improvement_history && activeRun.improvement_history.length > 0 && (
+                                        {displayRun.improvement_history && displayRun.improvement_history.length > 0 && (
                                             <div className="flex items-center gap-2">
-                                                {activeRun.improvement_history.map(iter => (
+                                                {displayRun.improvement_history.map(iter => (
                                                     <button
                                                         key={iter.iteration}
                                                         onClick={() => {
@@ -705,16 +709,22 @@ export default function OptimizationPage() {
                                                 ))}
                                                 <div className="w-[1px] h-3 bg-[#E5E5E5] mx-1" />
                                                 <div className="text-green-600 font-bold">
-                                                    {(activeRun.improvement_history[activeRun.improvement_history.length - 1].metrics.composite * 100).toFixed(1)}%
+                                                    {(displayRun.improvement_history[displayRun.improvement_history.length - 1].metrics.composite * 100).toFixed(1)}%
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                     <p className="font-mono text-sm leading-relaxed min-h-[40px]">
                                         <span className="text-[#121212] font-semibold mr-2">{">"}</span> {
-                                            commentary || (activeRun.iterations_completed === 0 ? EVALUATION_MESSAGES[rotatingMessageIndex] :
-                                                activeRun.iterations_completed >= activeRun.max_iterations ? "Finalizing results & selecting best prompt..." :
-                                                    "Applying textual gradient descent to refine instructions...")
+                                            commentary || (
+                                                starting && !activeRun ? (
+                                                    <span className="animate-pulse text-[#78716c]">Initializing Trigger.dev environment & queuing job...</span>
+                                                ) : (
+                                                    displayRun.iterations_completed === 0 ? EVALUATION_MESSAGES[rotatingMessageIndex] :
+                                                        displayRun.iterations_completed >= displayRun.max_iterations ? "Finalizing results & selecting best prompt..." :
+                                                            "Applying textual gradient descent to refine instructions..."
+                                                )
+                                            )
                                         }
                                         <span className="animate-pulse">_</span>
                                     </p>
@@ -722,9 +732,9 @@ export default function OptimizationPage() {
                                     {/* Sub-steps Indicator */}
                                     <div className="pt-4 border-t border-[#E5E5E5] grid grid-cols-4 gap-4">
                                         {[
-                                            { label: 'Evaluate', active: (commentary.toLowerCase().includes('evaluating') || (!commentary && activeRun.iterations_completed === 0)) && !commentary.toLowerCase().includes('identifying') },
+                                            { label: 'Evaluate', active: (commentary.toLowerCase().includes('evaluating') || (!commentary && displayRun.iterations_completed === 0)) && !commentary.toLowerCase().includes('identifying') },
                                             { label: 'Analyze', active: commentary.toLowerCase().includes('analyzing') || commentary.toLowerCase().includes('identifying') },
-                                            { label: 'Edit', active: commentary.toLowerCase().includes('improving') || commentary.toLowerCase().includes('applying') || (activeRun.iterations_completed > 0 && !commentary) },
+                                            { label: 'Edit', active: commentary.toLowerCase().includes('improving') || commentary.toLowerCase().includes('applying') || (displayRun.iterations_completed > 0 && !commentary) },
                                             { label: 'Next', active: false }
                                         ].map((step, i) => (
                                             <div key={i} className="flex flex-col gap-1.5">
@@ -746,7 +756,7 @@ export default function OptimizationPage() {
                                     <div className="pt-6 border-t border-[#E5E5E5]">
                                         <div className="flex items-center justify-between mb-3">
                                             <span className="text-[10px] font-mono text-[#78716c] uppercase">v1 → v5 Evolution</span>
-                                            <span className="text-[10px] font-mono text-[#121212] font-bold">ITERATION {activeRun.iterations_completed + 1}</span>
+                                            <span className="text-[10px] font-mono text-[#121212] font-bold">ITERATION {displayRun.iterations_completed + 1}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             {[1, 2, 3, 4, 5].map((v) => (
@@ -754,8 +764,8 @@ export default function OptimizationPage() {
                                                     key={v}
                                                     className={cn(
                                                         "flex-1 h-3 rounded-sm transition-all duration-700",
-                                                        v <= activeRun.iterations_completed ? "bg-[#121212]" :
-                                                            v === activeRun.iterations_completed + 1 ? "bg-[#121212]/20 animate-pulse" : "bg-[#E5E5E5]"
+                                                        v <= displayRun.iterations_completed ? "bg-[#121212]" :
+                                                            v === displayRun.iterations_completed + 1 ? "bg-[#121212]/20 animate-pulse" : "bg-[#E5E5E5]"
                                                     )}
                                                 />
                                             ))}

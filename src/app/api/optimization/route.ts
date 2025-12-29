@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/db/client";
 import { tasks } from "@trigger.dev/sdk/v3";
 import * as fs from "fs";
 import * as path from "path";
@@ -14,18 +14,7 @@ import * as os from "os";
 
 export const dynamic = 'force-dynamic';
 
-const createSupabaseClient = () => {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_KEY;
-
-    if (!url || !key) {
-        console.warn("Supabase credentials missing in environment variables");
-        return null;
-    }
-    return createClient(url, key);
-};
-
-const supabase = createSupabaseClient();
+const supabase = createServerClient();
 
 export async function POST(request: NextRequest) {
     try {

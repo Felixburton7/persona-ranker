@@ -1,5 +1,5 @@
 import { task, metadata, wait } from "@trigger.dev/sdk/v3";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "../lib/db/client";
 import { scoutCompany, generatePersonalizedEmail, generateCompanySummary } from "../lib/scout";
 
 interface CompanyScoutPayload {
@@ -18,10 +18,8 @@ export const companyScoutTask = task({
         maxAttempts: 2,
     },
     run: async (payload: CompanyScoutPayload) => {
-        const supabase = createClient(
-            process.env.SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_KEY!
-        );
+        const supabase = createServerClient();
+        if (!supabase) throw new Error("Supabase credentials missing");
         const { jobId, companyId, leadId, preferredModel, apiKey, geminiApiKey } = payload;
         const sessionKeys = { groq: apiKey, gemini: geminiApiKey };
         const modelToUse = preferredModel || "gemini-2.0-flash";

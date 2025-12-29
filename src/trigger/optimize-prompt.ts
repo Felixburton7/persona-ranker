@@ -11,7 +11,8 @@
  */
 
 import { task, metadata } from "@trigger.dev/sdk/v3";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient } from "@supabase/supabase-js";
+import { createServerClient } from "../lib/db/client";
 import { llm, LLM_MODEL, extractJsonResponse, completionWithRetry, estimateCost, RankingResponse } from "../lib/ai/client";
 import { buildRankingPrompt } from "../lib/ranking/prompt";
 import { prefilterLead } from "../lib/ranking/prefilter";
@@ -43,18 +44,7 @@ export const optimizePromptTask = task({
     },
 
     run: async (payload: OptimizePromptPayload) => {
-        const createSupabaseClient = () => {
-            const url = process.env.SUPABASE_URL;
-            const key = process.env.SUPABASE_SERVICE_KEY;
-
-            if (!url || !key) {
-                console.warn("Supabase credentials missing in environment variables");
-                return null;
-            }
-            return createClient(url, key);
-        };
-
-        const supabase = createSupabaseClient();
+        const supabase = createServerClient();
         if (!supabase) throw new Error("Supabase credentials missing");
 
         const { runId, maxIterations = 5, evalSetPath } = payload;

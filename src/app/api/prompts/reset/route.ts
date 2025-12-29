@@ -1,21 +1,9 @@
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/db/client";
 import { buildRankingPrompt } from "@/lib/ranking/prompt";
 
-const createSupabaseClient = () => {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_KEY;
-
-    if (!url || !key) {
-        console.warn("Supabase credentials missing in environment variables");
-        return null;
-    }
-
-    return createClient(url, key);
-};
-
-const supabase = createSupabaseClient();
+const supabase = createServerClient();
 
 export async function POST() {
     try {

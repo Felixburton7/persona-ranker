@@ -9,7 +9,8 @@
  */
 
 import { task, metadata, tasks } from "@trigger.dev/sdk/v3";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient } from "@supabase/supabase-js";
+import { createServerClient } from "../lib/db/client";
 import { extractJsonResponse, estimateCost, completionWithRetry, LLM_MODEL } from "../lib/ai/client";
 import { buildRankingPrompt, CandidateInput } from "../lib/ranking/prompt";
 import { prefilterLead } from "../lib/ranking/prefilter";
@@ -65,10 +66,8 @@ export const rankCompanyTask = task({
     retry: { maxAttempts: 3, minTimeoutInMs: 1000, maxTimeoutInMs: 10000 },
 
     run: async (payload: RankCompanyPayload) => {
-        const supabase = createClient(
-            process.env.SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_KEY!
-        );
+        const supabase = createServerClient();
+        if (!supabase) throw new Error("Supabase credentials missing");
 
         const { jobId, companyId, preferredModel, apiKey, geminiApiKey, useCompanyScout } = payload;
         const sessionKeys = { groq: apiKey, gemini: geminiApiKey };

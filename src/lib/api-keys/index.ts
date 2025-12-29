@@ -1,9 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/db/client";
 
-const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-);
+const supabase = createServerClient();
 
 // Simple decryption function (matches the encryption in the API route)
 function simpleDecrypt(encrypted: string, key: string = process.env.ENCRYPTION_KEY || "default-key"): string {
@@ -33,6 +30,7 @@ export interface StoredApiKey {
  */
 export async function getApiKeyForModel(modelName: string): Promise<StoredApiKey | null> {
     try {
+        if (!supabase) return null;
         const { data, error } = await supabase
             .from("api_keys")
             .select("*")
@@ -57,6 +55,7 @@ export async function getApiKeyForModel(modelName: string): Promise<StoredApiKey
  */
 export async function getAllApiKeys(): Promise<StoredApiKey[]> {
     try {
+        if (!supabase) return [];
         const { data, error } = await supabase
             .from("api_keys")
             .select("*")

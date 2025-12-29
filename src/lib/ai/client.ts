@@ -12,6 +12,7 @@
 
 import OpenAI from "openai";
 import { getApiKeyForModel } from "../api-keys";
+import { SUPPORTED_MODELS } from "../constants";
 
 // ============================================================================
 // CONFIGURATION
@@ -36,28 +37,19 @@ export const LLM_MODEL = "gemini-2.5-flash";
 
 /**
  * Groq models - ordered by capability
- * These are used when user selects a non-Gemini model
+ * Derived from shared constants
  */
-const GROQ_MODELS = [
-  "llama-3.3-70b-versatile",
-  "openai/gpt-oss-120b",
-  "meta-llama/llama-4-maverick-17b-128e-instruct",
-  "meta-llama/llama-4-scout-17b-16e-instruct",
-  "qwen/qwen3-32b",
-  "moonshotai/kimi-k2-instruct-0905",
-  "llama-3.1-8b-instant",
-];
+const GROQ_MODELS = SUPPORTED_MODELS
+  .filter(m => m.provider !== "Google")
+  .map(m => m.name);
 
 /**
  * Gemini models - for OpenAI-compatible endpoint
- * These model names match what's available at /v1beta/openai/models
+ * Derived from shared constants
  */
-const GEMINI_MODELS = [
-  "gemini-2.5-flash",      // Latest Gemini 2.5 Flash
-  "gemini-2.5-pro",        // Latest Gemini 2.5 Pro (more capable)
-  "gemini-2.0-flash",      // Gemini 2.0 Flash
-  "gemini-2.0-flash-lite", // Lightweight version
-];
+const GEMINI_MODELS = SUPPORTED_MODELS
+  .filter(m => m.provider === "Google")
+  .map(m => m.name);
 
 // ============================================================================
 // PROVIDER CONFIGURATION
@@ -195,9 +187,12 @@ export async function completionWithRetry(
   const provider = isStrictGeminiMode ? "Gemini" : "Groq";
   let errorMessage: string;
 
+  const status = (lastError as any)?.status;
+  const errorMsg = (lastError as any)?.message;
+
   if (isStrictGeminiMode) {
     // Gemini-specific error messages
-    switch (lastError?.status) {
+    switch (status) {
       case 429:
         errorMessage = `❌ Gemini Rate Limit: Quota exceeded. Check billing at https://ai.google.dev/usage`;
         break;
@@ -208,18 +203,19 @@ export async function completionWithRetry(
         errorMessage = `❌ Gemini Model Not Found: '${params.model}' unavailable. Try gemini-1.5-flash or gemini-1.5-pro`;
         break;
       default:
-        errorMessage = `❌ Gemini Error: All ${uniqueModels.length} models failed. Last: ${lastError?.message?.substring(0, 150)}`;
+        errorMessage = `❌ Gemini Error: All ${uniqueModels.length} models failed. Last: ${errorMsg?.substring(0, 150)}`;
     }
   } else {
-    errorMessage = `All ${uniqueModels.length} models exhausted. Last error: ${lastError?.message?.substring(0, 150)}`;
+    errorMessage = `All ${uniqueModels.length} models exhausted. Last error: ${errorMsg?.substring(0, 150)}`;
   }
 
   console.error(`🚨 ${errorMessage}`);
 
-  const error = new Error(errorMessage);
-  (error as any).status = lastError?.status || 429;
-  (error as any).provider = provider;
-  (error as any).modelsAttempted = uniqueModels;
+  // Create a structured error object
+  const error: any = new Error(errorMessage);
+  error.status = status || 429;
+  error.provider = provider;
+  error.modelsAttempted = uniqueModels;
   throw error;
 }
 

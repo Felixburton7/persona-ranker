@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/db/client";
 
-const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-);
+const supabase = createServerClient();
 
 // Simple encryption/decryption (in production, use a proper encryption library)
 // This is a basic XOR cipher for demonstration - replace with proper encryption in production
@@ -28,6 +25,9 @@ function simpleDecrypt(encrypted: string, key: string = process.env.ENCRYPTION_K
 // GET - Fetch all API keys
 export async function GET(req: NextRequest) {
     try {
+        if (!supabase) {
+            return NextResponse.json({ error: "Database connection not available" }, { status: 503 });
+        }
         const { data, error } = await supabase
             .from("api_keys")
             .select("*")
@@ -55,6 +55,9 @@ export async function GET(req: NextRequest) {
 // POST - Add or update API key
 export async function POST(req: NextRequest) {
     try {
+        if (!supabase) {
+            return NextResponse.json({ error: "Database connection not available" }, { status: 503 });
+        }
         const body = await req.json();
         const { provider, model_name, api_key, base_url, display_name } = body;
 
@@ -102,6 +105,9 @@ export async function POST(req: NextRequest) {
 // DELETE - Remove an API key
 export async function DELETE(req: NextRequest) {
     try {
+        if (!supabase) {
+            return NextResponse.json({ error: "Database connection not available" }, { status: 503 });
+        }
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");
 

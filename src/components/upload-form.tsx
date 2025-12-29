@@ -6,28 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Upload, Key, ChevronDown, ChevronUp, Check, X, Eye, EyeOff } from "lucide-react";
 import { GeminiIcon, GroqIcon } from "./icons";
 import { useJobProgress } from "@/hooks/useJobProgress";
+import { SUPPORTED_MODELS, SavedApiKey } from "@/lib/constants";
 
 interface UploadFormProps {
     onJobCreated: (jobId: string) => void;
     jobId?: string | null;
 }
-
-interface SavedApiKey {
-    id: string;
-    provider: string;
-    model_name: string;
-    display_name?: string;
-}
-
-const SUPPORTED_MODELS = [
-    { name: "llama-3.3-70b-versatile", displayName: "Llama 3.3 70B (Versatile)", description: "Balanced - Best for general use", provider: "Meta" },
-    { name: "llama-3.1-8b-instant", displayName: "Llama 3.1 8B (Instant)", description: "Fastest - Great for small companies", provider: "Meta" },
-    { name: "qwen/qwen3-32b", displayName: "Qwen 3 32B", description: "Efficient - 32B params", provider: "Alibaba" },
-    { name: "groq/compound", displayName: "Groq Compound", description: "Groq native", provider: "Groq" },
-    { name: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash", description: "Google's latest & fastest", provider: "Google" },
-    { name: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro", description: "Google's most capable", provider: "Google" },
-    { name: "gemini-2.0-flash", displayName: "Gemini 2.0 Flash", description: "Google's stable model", provider: "Google" },
-];
 
 export function UploadForm({ onJobCreated, jobId }: UploadFormProps) {
     const [file, setFile] = useState<File | null>(null);
