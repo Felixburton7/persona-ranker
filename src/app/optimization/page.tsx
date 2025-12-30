@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { Loader2, RotateCcw, X, AlertCircle } from "lucide-react";
+import { Loader2, RotateCcw, X, AlertCircle, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Import new components
@@ -340,7 +340,29 @@ export default function OptimizationPage() {
                 <OptimizationWorkflow />
 
                 {/* Primary Interaction Area */}
-                <div className="grid lg:grid-cols-2 gap-12 mb-24 items-stretch">
+                {/* Header Row - Aligned with Left Column */}
+                <div className="grid lg:grid-cols-2 gap-12 mb-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-bold flex items-center gap-3">
+                            <Activity className="w-6 h-6" />
+                            Optimization Status
+                        </h2>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowResetModal(true)}
+                            className="h-8 border-[#E5E5E5] bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors shadow-sm"
+                        >
+                            <RotateCcw className="w-3 h-3 mr-2" />
+                            Start Fresh
+                        </Button>
+                    </div>
+                    {/* Empty Right Column Spacer */}
+                    <div className="hidden lg:block" />
+                </div>
+
+                {/* Primary Interaction Area - Cards Grid */}
+                <div className="grid lg:grid-cols-2 gap-12 mb-24 items-start">
                     {/* Left Column: Toggles between Form (Ready) and Status (Running) */}
                     <div className="h-full">
                         {activeRun ? (
@@ -364,7 +386,7 @@ export default function OptimizationPage() {
 
                     {/* Right Column: Strategy Explanation */}
                     <div className="h-full">
-                        <OptimizationStrategy />
+                        <OptimizationStrategy isOptimizing={!!activeRun || starting} />
                     </div>
                 </div>
 

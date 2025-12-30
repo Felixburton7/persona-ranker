@@ -32,23 +32,7 @@ export function OptimizationHeader({ onReset }: OptimizationHeaderProps) {
                 </div>
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-12 mt-12 mb-6">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold flex items-center gap-3">
-                        <Activity className="w-6 h-6" />
-                        Optimization Status
-                    </h2>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onReset}
-                        className="h-8 border-[#E5E5E5] hover:bg-white hover:text-red-600 transition-colors"
-                    >
-                        <RotateCcw className="w-3 h-3 mr-2" />
-                        Start Fresh
-                    </Button>
-                </div>
-            </div>
+
         </div>
     );
 }

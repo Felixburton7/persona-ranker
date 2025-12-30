@@ -1,10 +1,26 @@
 # Throxy Persona Ranker
 
-A high-performance system for **ranking sales leads** against an ideal customer persona.
+> **Live Demo:** [persona-ranker-five.vercel.app](https://persona-ranker-five.vercel.app)  
+> **Documentation:** [persona-ranker-five.vercel.app/docs](https://persona-ranker-five.vercel.app/docs)
 
-**Live Demo:** [persona-ranker.vercel.app](https://persona-ranker.vercel.app)
+A high-performance system for **ranking sales leads** against an ideal customer persona. It uses autonomous agents to enrich, filter, and rank contacts, maximizing relevance while minimizing token costs.
 
 ![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white) ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white) ![Trigger.dev](https://img.shields.io/badge/Trigger.dev-4F46E5?style=for-the-badge&logo=trigger.dev&logoColor=white)
+
+---
+
+## Clean Architecture
+
+The project is structured to separate concerns, ensuring scalability and maintainability:
+
+- **Core Domain** (`src/lib`): Contains pure business logic.
+  - `ranking/`: The LLM prompting strategies and scoring rubrics.
+  - `normalization/`: Data cleaning rules.
+  - `optimization/`: The self-improving prompt algorithms (APO).
+- **Application Layer** (`src/trigger`): Handles orchestration and state management.
+  - Durable background jobs (Agents) that manage long-running ranking tasks without timeouts.
+- **Presentation** (`src/app`): Modern Next.js UI.
+  - Subscribes to Supabase Realtime for live updates from the agents.
 
 ---
 
@@ -20,19 +36,17 @@ npm run dev
 
 ## Key Files
 
-| What | Where |
-|------|-------|
-| **Ranking Agent** | [`src/trigger/rank-company.ts`](src/trigger/rank-company.ts) |
-| **Pre-filter Logic** | [`src/lib/ranking/prefilter.ts`](src/lib/ranking/prefilter.ts) |
-| **Prompt Template** | [`src/lib/ranking/prompt.ts`](src/lib/ranking/prompt.ts) |
-| **Prompt Optimizer** | [`src/trigger/optimize-prompt.ts`](src/trigger/optimize-prompt.ts) |
-| **Scout Agent** | [`src/trigger/company-scout.ts`](src/trigger/company-scout.ts) |
-| **Normalization** | [`src/lib/normalization/`](src/lib/normalization) |
-| **DB Schema** | [`schema.sql`](schema.sql) |
+| Component | Path | Description |
+|-----------|------|-------------|
+| **Ranking Agent** | [`src/trigger/rank-company.ts`](src/trigger/rank-company.ts) | Main workflow that processes companies. |
+| **Logic Core** | [`src/lib/ranking/`](src/lib/ranking) | Contains `prefilter.ts` (rules) and `prompt.ts` (LLM logic). |
+| **Prompt Optimizer** | [`src/trigger/optimize-prompt.ts`](src/trigger/optimize-prompt.ts) | Agent that improves the prompt using an eval set. |
+| **Scout Agent** | [`src/trigger/company-scout.ts`](src/trigger/company-scout.ts) | Enriches company data from the web. |
+| **DB Schema** | [`schema.sql`](schema.sql) | Postgres schema for leads, companies, and rankings. |
 
 ---
 
-## Architecture
+## Architecture Flow
 
 ```mermaid
 flowchart LR
@@ -43,44 +57,10 @@ flowchart LR
     E --> F[Realtime UI]
 ```
 
-### How It Works
+### Key Decisions
 
-1. **Ingestion** — CSV parsed, companies deduplicated via canonical key
-2. **Pre-filter** — Rules exclude obvious non-fits (HR, Legal, Interns) → saves ~40% token costs
-3. **LLM Ranking** — Leads ranked head-to-head within company context using Gemini/Groq
-4. **Realtime** — Results stream to UI via Supabase subscriptions
+1.  **Company-batched ranking**: We rank leads *per company* to allow the LLM to make relative comparisons (finding the *true* decision maker among peers).
+2.  **Deterministic pre-filter**: Hard rules exclude obvious non-fits (Interns, HR) before the LLM touches them, saving ~40% cost.
+3.  **Trigger.dev Orchestration**: Moves complex logic out of Vercel serverless functions to avoid timeouts and ensure durability.
 
----
-
-## Key Decisions
-
-| Decision | Why |
-|----------|-----|
-| **Company-batched ranking** | "VP Sales" at 10-person startup ≠ "VP Sales" at 5000-person enterprise. Context matters. |
-| **Deterministic pre-filter** | Hard-code exclusions for clear non-fits before LLM. Faster + cheaper. |
-| **Forced ranking (1,2,3...)** | No ties. Forces model to make trade-offs instead of arbitrary 1-100 scores. |
-| **Trigger.dev for jobs** | Vercel times out at 60s. Trigger.dev handles long-running ranking with retries. |
-
----
-
-## Tradeoffs
-
-- **Batching vs Global Rank** — LLM never sees all leads at once. We use scores for final global sort.
-- **Latency** — Full ranking takes 1-2 mins. Chose accuracy over speed, mitigated by realtime UI.
-- **Complexity** — Trigger.dev + Supabase Realtime is heavier than a simple API, but solves timeouts.
-
----
-
-## Bonuses Completed
-
-- ✅ Cost tracking per AI call
-- ✅ Sortable table by rank  
-- ✅ Export top N per company to CSV
-- ✅ Real-time ranking progress
-- ✅ Automatic prompt optimization (APO/ProTeGi algorithm)
-
----
-
-## Stack
-
-Next.js 15 • Supabase (Postgres) • Trigger.dev v3 • Gemini/Groq • TailwindCSS + ShadCN
+For a deep dive into the trade-offs and design, check out the **[Architecture Docs](https://persona-ranker-five.vercel.app/docs)**.
