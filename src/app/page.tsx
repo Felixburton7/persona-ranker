@@ -66,8 +66,8 @@ export default function Home() {
               </span>
             </div>
             <h1 className={`leading-[0.95] tracking-tight font-bold text-[#0F0F0F] transition-all duration-700 ${jobId ? 'text-2xl pt-0' : 'text-5xl lg:text-7xl pt-4'}`}>
-              Leads to revenue,<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500">autonomously.</span>
+              Persona Ranker,<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500">Technical Challenge</span>
             </h1>
             <p className={`text-gray-500 leading-relaxed max-w-lg font-light transition-all duration-700 ${jobId ? 'text-sm mb-4 opacity-80' : 'text-lg mb-10 opacity-100'}`}>
               Upload your leads list (.csv file) and rank them based on the target personas. This project maps organization hierarchies and scores buying intent for every lead. With some bonus features! Checkout Prompt Optimization and Documentation at the top for more!
@@ -84,7 +84,7 @@ export default function Home() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 }

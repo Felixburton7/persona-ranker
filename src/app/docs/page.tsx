@@ -157,8 +157,8 @@ export default function DocsPage() {
                         </span>
                     </h2>
 
-                    <p className="text-xl text-[#78716c] max-w-2xl leading-relaxed mb-16">
-                        Here's the architecture and decisions I made, hope they make sense!
+                    <p className="text-xl text-[#78716c] max-w-5xl leading-relaxed mb-16">
+                        Here's the architecture and decisions I made, hope they make sense! For the ranking, I chose to <span className="text-[#1A1A1A] font-medium">filter and then batch candidates by company</span> rather than scoring individually. This lets the model compare peers directly to find the true decision-makers, balancing <span className="text-[#1A1A1A] font-medium">contextual accuracy</span> with <span className="text-[#1A1A1A] font-medium">token costs</span>. For the prompt optimization, I implemented a <span className="text-[#1A1A1A] font-medium">size-aware subsampling</span> strategy—optimizing against a diverse subset of companies to prevent overfitting while keeping the feedback loop fast.
                     </p>
 
                     {/* Choice Grid */}
@@ -289,7 +289,7 @@ export default function DocsPage() {
                                             <h3 className="text-xl font-bold text-[#1A1A1A]">{step.title}</h3>
                                             <span className="hidden md:inline-block h-px w-10 bg-gray-100"></span>
                                             <span className="text-xs font-mono text-gray-400 uppercase tracking-widest border border-gray-100 px-2 py-0.5 rounded">
-                                                Step {String(step.id).padStart(2, "0")}
+                                                {step.id === 8 ? "Additional" : `Step ${String(step.id).padStart(2, "0")}`}
                                             </span>
                                         </div>
 
@@ -323,24 +323,6 @@ export default function DocsPage() {
                                 </div>
                             </div>
                         ))}
-                    </div>
-
-                    {/* Bottom CTA */}
-                    <div className="mt-32 p-12 bg-gray-50 rounded-3xl text-center border border-gray-100">
-                        <h3 className="text-xl font-bold mb-4">Ready to see it in action?</h3>
-
-                        <p className="text-sm text-gray-500 mb-8">
-                            Upload your lead CSV and watch the autonomous ranking system in real-time.
-                        </p>
-
-                        <Link
-                            href="/"
-                            className="inline-flex items-center gap-2 px-8 py-4 bg-[#1A1A1A] text-white font-bold rounded-xl hover:scale-105 transition-transform"
-                        >
-                            <Zap size={20} />
-                            Launch Ranker
-                        </Link>
-                        ```
                     </div>
                 </div>
             </main>
@@ -522,6 +504,25 @@ export default function DocsPage() {
                     </div>
                 </div>
             </section>
+
+            {/* Bottom CTA */}
+            <div className="max-w-[900px] mx-auto px-6 mb-20">
+                <div className="p-12 bg-gray-50 rounded-3xl text-center border border-gray-100">
+                    <h3 className="text-xl font-bold mb-4">Ready to see it in action?</h3>
+
+                    <p className="text-sm text-gray-500 mb-8">
+                        Upload your lead CSV and watch the autonomous ranking system in real-time.
+                    </p>
+
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-2 px-8 py-4 bg-[#1A1A1A] text-white font-bold rounded-xl hover:scale-105 transition-transform"
+                    >
+                        <Zap size={20} />
+                        Launch Ranker
+                    </Link>
+                </div>
+            </div>
 
             {/* Footer */}
             <footer className="border-t border-gray-100 py-8">

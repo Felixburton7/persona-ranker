@@ -113,27 +113,20 @@ export function loadEvalSetFromFile(filePath?: string): EvalSetData {
         return parseEvalSet(fs.readFileSync(filePath, "utf-8"));
     }
 
-    const filename = "eval_set.csv - Evaluation Set.csv";
-
-    // Calculate path relative to this file (src/lib/optimization/eval-set.ts)
-    // Structure: root/_assets/initial_documents/file.csv
-    // This file: root/src/lib/optimization/eval-set.ts
-    // Relative: ../../../_assets/initial_documents/file.csv
-    const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    const relativePath = path.resolve(currentDir, "..", "..", "..", "_assets", "initial_documents", filename);
+    const filename = "eval_set.csv";
 
     const possiblePaths = [
-        // 1. Explicit argument if passed (but check exists above handled it)
+        // 1. Explicit argument if passed
         ...(filePath ? [filePath] : []),
 
-        // 2. Standard location relative to CWD (usually works locally)
-        path.join(process.cwd(), "_assets", "initial_documents", filename),
+        // 2. Production/Vercel standard: public/data relative to CWD
+        path.join(process.cwd(), "public", "data", filename),
 
-        // 3. Relative to this source file (works if CWD is weird but structure preserved)
-        relativePath,
+        // 3. Fallback for potential weird CWD situations or local dev
+        path.join(process.cwd(), "..", "public", "data", filename),
 
-        // 4. Sometimes assets are copied to root in containers
-        path.join(process.cwd(), filename),
+        // 4. Legacy/Asset location (keep as backup)
+        path.join(process.cwd(), "_assets", "initial_documents", "eval_set.csv - Evaluation Set.csv"),
     ];
 
     for (const p of possiblePaths) {
