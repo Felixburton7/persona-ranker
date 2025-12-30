@@ -115,4 +115,4 @@ To ship a robust MVP within the timeline, I made several deliberate tradeoffs:
    - *Tradeoff:* Demonstrates the capability of personalized outreach without the complexity of managing bulk sending quotas or spam filters in a demo environment.
 
 4. **Gemini Flash vs. Pro:** I constrained the system to use the cheapest model (Gemini 1.5 Flash) to keep running costs near zero.
-   - *Tradeoff:* Accuracy is good, but a larger model (Gemini 1.5 Pro or GPT-4o) would likely yield significantly better reasoning on edge-case titles.
+   - *Tradeoff:* Accuracy is good, but a larger model (Gemini 2.5 Pro or GPT-4o) would likely yield significantly better reasoning on edge-case titles.
