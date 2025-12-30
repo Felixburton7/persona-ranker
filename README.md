@@ -36,9 +36,10 @@ I prioritized **clean, maintainable code** throughout the codebase:
 
 ### 💡 Other Highlights
 
-- **🤖 Robust LLM Client:** (See `src/lib/ai/client.ts`) The system features a **multi-provider failover strategy**. If Groq (Llama 3) fails or rate-limits, it seamlessly hot-swaps to Gemini (Google) without dropping the request.
-- **🛡️ Self-Healing JSON:** LLMs often output broken or truncated JSON. I wrote a custom parser that **auto-repairs** malformed JSON (closing missing braces, fixing quotes) to prevent downstream crashes.
-- **🧬 Autonomous Optimization:** The "Improver" agent (`src/trigger/optimize-prompt.ts`) implements the **ProTeGi** algorithm. It runs experiments against a Golden Dataset, analyzes failures, and *rewrites its own prompt* to improve F1 scores over time. **If I had more time I would have loved to implement this into the intial ranker!!!**
+- **LLM Client:** (See `src/lib/ai/client.ts`) The system features a **multi-provider failover strategy**. If Groq (Llama 3) fails or rate-limits, it seamlessly hot-swaps to Gemini (Google) without dropping the request.
+- **Self-Healing JSON:** LLMs often output broken or truncated JSON. I wrote a custom parser that **auto-repairs** malformed JSON (closing missing braces, fixing quotes) to prevent downstream crashes.
+- **Autonomous Optimization:** The "Improver" agent (`src/trigger/optimize-prompt.ts`) implements the **ProTeGi** algorithm. It runs experiments against a Golden Dataset, analyzes failures, and *rewrites its own prompt* to improve F1 scores over time.
+**If I had more time I would have loved to somehow combine this with the intitial dataset to create a more accurate model!!!**
 
 ---
 
