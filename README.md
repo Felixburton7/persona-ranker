@@ -98,3 +98,21 @@ flowchart TD
 3.  **Durable Execution**: Ranking 1,000 leads takes time. Trigger.dev ensures that if the API hangs or the process takes 5 minutes, it doesn't crash the UI or timeout the request.
 
 For a deeper dive into the methodology, check out the **[Architecture Docs](https://persona-ranker-five.vercel.app/docs)**.
+
+---
+
+## ⚖️ Tradeoffs & Limitations
+
+To ship a robust MVP within the timeline, I made several deliberate tradeoffs:
+
+1. **Subsampled Optimization**: The "Improver" agent verifies prompt changes against a random subset of 5 companies rather than the full validation set.
+   - *Tradeoff:* We lose some statistical confidence in exchange for rapid feedback loops (minutes vs. hours).
+
+2. **Disconnected Optimization Loop:** The "Improver" agent optimizes the prompt in isolation, but I didn't have time to automatically feed the improved prompt back into the main Ranking pipeline.
+   - *Tradeoff:* The optimization proves the concept but requires a manual copy-paste to "productionize" the winning prompt.
+
+3. **Single-Lead Email Automation:** The automated email drafter currently runs for a single example lead rather than processing the entire batch.
+   - *Tradeoff:* Demonstrates the capability of personalized outreach without the complexity of managing bulk sending quotas or spam filters in a demo environment.
+
+4. **Gemini Flash vs. Pro:** I constrained the system to use the cheapest model (Gemini 1.5 Flash) to keep running costs near zero.
+   - *Tradeoff:* Accuracy is good, but a larger model (Gemini 1.5 Pro or GPT-4o) would likely yield significantly better reasoning on edge-case titles.
