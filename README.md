@@ -1,4 +1,4 @@
-# Throxy Persona Ranker
+# Throxy Persona Rankerge
 
 > **Live Demo:** [persona-ranker-five.vercel.app](https://persona-ranker-five.vercel.app)  
 > **Documentation:** [persona-ranker-five.vercel.app/docs](https://persona-ranker-five.vercel.app/docs)
@@ -13,35 +13,15 @@ It is built to be **high-precision** (using LLMs for reasoning) but **cost-effec
 
 ## 📂 Project Structure Guide
 
-This project is organized to separate **business logic** (how we rank) from **orchestration** (running the jobs) and **presentation** (showing not tell).
+The project is organized into three distinct layers:
 
-### 1. The Brain: Ranking Logic (`src/lib/ranking`)
-This directory contains the core intelligence of the system.
-- **`src/lib/ranking/prefilter.ts`**: **The Guardrails.** A deterministic rule engine that runs *before* any LLM call.
-  - **Role:** Filters out obvious mismatches (e.g., Interns, HR, Support) using Regex.
-  - **Size Awareness:** Applies logic like "Exclude CEOs at Enterprise companies" but "Keep CEOs at Startups."
-  - **Benefit:** Saves ~40% of LLM costs by removing clear non-fits immediately.
-- **`src/lib/ranking/prompt.ts`**: **The Context Builder.** Dynamically constructs the prompt sent to the LLM.
-  - **Dynamic Rubrics:** Injects different scoring instructions based on company size (e.g., "Prioritize Founders" for Startups vs. "Prioritize VPs" for Enterprise).
-  - **Safety:** Maps candidates to short integer IDs (1, 2, 3...) to preventing the LLM from hallucinating UUIDs.
-  - **Token Efficiency:** Formats data to be concise.
-
-### 2. The Muscle: Orchestration (`src/trigger`)
-We use [Trigger.dev](https://trigger.dev) for durable, long-running background jobs that won't timeout like serverless functions.
-- **`src/trigger/rank-company.ts`**: **The Worker.** The main workflow that orchestrates the pipeline:
-  1. Validates & Normalizes inputs.
-  2. Runs the `prefilter` to drop leads.
-  3. Batches remaining leads and generates the `prompt`.
-  4. Calls the LLM (Gemini/Groq) to rank the batch.
-  5. Saves results to Supabase.
-- **`src/trigger/optimize-prompt.ts`**: **The Improver.** An autonomous agent that runs the ranking against a "Golden Set" (`eval_set.csv`) to measure accuracy and iteratively improve the system's prompts.
-- **`src/trigger/company-scout.ts`**: **The Scout.** Fetches external data to enrich company profiles before ranking.
-
-### 3. The Face: User Interface (`src/app`)
-A Next.js App Router application.
-- **`src/app/page.tsx`**: Main upload and dashboard view.
-- **`src/app/optimization/page.tsx`**: Interface for the prompt optimization agent.
-- **`src/lib/ai/client.ts`**: Centralized configuration for AI models (Gemini, Groq) with failover/retry logic.
+| Layer | Component | Description |
+|-------|-----------|-------------|
+| **🧠 Logic** | [`src/lib/ranking/prefilter.ts`](src/lib/ranking/prefilter.ts) | **The Guardrails**. A deterministic Regex engine that filters out obvious mismatches (HR, Interns) *before* the LLM, saving ~40% cost. |
+| **🧠 Logic** | [`src/lib/ranking/prompt.ts`](src/lib/ranking/prompt.ts) | **The Context Builder**. Constructs dynamic prompts with rubrics tailored to company size (e.g., *Startup* vs. *Enterprise* logic). |
+| **💪 Muscle** | [`src/trigger/rank-company.ts`](src/trigger/rank-company.ts) | **The Worker**. The main background job that orchestrates validation, pre-filtering, batching, and LLM ranking. |
+| **💪 Muscle** | [`src/trigger/optimize-prompt.ts`](src/trigger/optimize-prompt.ts) | **The Improver**. An autonomous agent that tests prompts against a "Golden Set" to iteratively improve accuracy. |
+| **👀 Face** | [`src/app/page.tsx`](src/app/page.tsx) | **The Dashboard**. Next.js UI for uploading leads and monitoring real-time progress. |
 
 ---
 
@@ -51,15 +31,15 @@ How a lead travels from CSV to Ranked Result:
 
 ```mermaid
 flowchart TD
-    A[Raw CSV Lead] -->|Normalize Title| B(Cleaned Lead)
-    B --> C{Prefilter Check}
-    C -->|Match Exclude Rule| D[Discard (Irrelevant)]
-    C -->|Pass| E[Candidate Pool]
-    E --> F[Prompt Builder]
-    F -->|Inject Company Size Rules| G[LLM Input]
-    G --> H[LLM Ranking Model]
-    H --> I[Structured JSON Output]
-    I --> J[(Supabase DB)]
+    A["Raw CSV Lead"] -->|"Normalize Title"| B("Cleaned Lead")
+    B --> C{"Prefilter Check"}
+    C -->|"Match Exclude Rule"| D["Discard (Irrelevant)"]
+    C -->|"Pass"| E["Candidate Pool"]
+    E --> F["Prompt Builder"]
+    F -->|"Inject Company Size Rules"| G["LLM Input"]
+    G --> H["LLM Ranking Model"]
+    H --> I["Structured JSON Output"]
+    I --> J[("Supabase DB")]
 ```
 
 ---
