@@ -3,7 +3,7 @@
 > **Live Demo:** [persona-ranker-five.vercel.app](https://persona-ranker-five.vercel.app)  
 > **Documentation:** [persona-ranker-five.vercel.app/docs](https://persona-ranker-five.vercel.app/docs)
 
-A high-performance system for **ranking sales leads** against an ideal customer persona. It uses autonomous agents to enrich, filter, and rank contacts, maximizing relevance while minimizing token costs.
+This is a system for **ranking sales leads** against an ideal customer persona. Which you can see in the ranking bit. It uses LLM's to enrich, filter, and rank contacts, maximizing relevance while minimizing token costs.
 
 ![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white) ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white) ![Trigger.dev](https://img.shields.io/badge/Trigger.dev-4F46E5?style=for-the-badge&logo=trigger.dev&logoColor=white)
 
@@ -11,7 +11,7 @@ A high-performance system for **ranking sales leads** against an ideal customer 
 
 ## Clean Architecture
 
-The project is structured to separate concerns, ensuring scalability and maintainability:
+I tried to keep the code as clean as possible!The project is structured to separate concerns, ensuring scalability and maintainability:
 
 - **Core Domain** (`src/lib`): Contains pure business logic.
   - `ranking/`: The LLM prompting strategies and scoring rubrics.

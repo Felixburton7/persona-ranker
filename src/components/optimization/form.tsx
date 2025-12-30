@@ -53,9 +53,11 @@ export function OptimizationForm({
     };
 
     return (
-        <div className="bg-[#FAF9F6] border-2 border-[#121212] py-8 px-8 rounded-xl shadow-[4px_4px_0px_0px_#121212] h-full flex flex-col justify-between relative overflow-hidden">
-            {/* Background Gradient Effect */}
-            <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-purple-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="bg-[#FAF9F6] border-2 border-[#121212] py-8 px-8 rounded-xl shadow-[4px_4px_0px_0px_#121212] h-full flex flex-col justify-between relative">
+            {/* Background Gradient Effect - Clipped */}
+            <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-purple-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            </div>
 
             <div className="relative z-10">
                 <div className="mb-6">
@@ -129,8 +131,10 @@ export function OptimizationForm({
                             <span>Upload custom eval set (optional)</span>
                         </button>
                     )}
-                    <p className="text-[10px] text-[#a3a3a3] mt-2 text-center opacity-70">
-                        CSV with columns: Full Name, Title, Company, Employee Range, Rank
+                    <p className="text-[10px] text-[#a3a3a3] mt-2 text-center opacity-70 leading-tight">
+                        Do nothing to use the pre-loaded default dataset.
+                        <br />
+                        <span className="opacity-75">Expected columns: Full Name, Title, Company, Employee Range, Rank</span>
                     </p>
                 </div>
 
