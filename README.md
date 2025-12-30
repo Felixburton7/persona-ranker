@@ -26,6 +26,20 @@ The project is organized into three distinct layers:
 | **💪 Muscle** | [`src/trigger/optimize-prompt.ts`](src/trigger/optimize-prompt.ts) | **The Improver**. An autonomous agent that tests prompts against a "Golden Set" to iteratively improve accuracy. |
 | **👀 Face** | [`src/app/page.tsx`](src/app/page.tsx) | **The Dashboard**. Next.js UI for uploading leads and monitoring real-time progress. |
 
+### ✨ Code Architecture Details
+
+I prioritized **clean, maintainable code** throughout the codebase:
+
+- **Composable UI:** The frontend uses atomic, reusable components (see [`src/components/ui`](src/components/ui)) to ensure consistency and speed up development.
+- **Strong Typing:** The entire stack is TypeScript, sharing interfaces between the database (Supabase types), the ranking logic, and the frontend to prevent mismatched data bugs.
+- **Separation of Concerns:** Business logic is isolated in `src/lib`, ensuring it can be tested independently of the UI or the background workers.
+
+### 💡 Other Highlights
+
+- **🤖 Robust LLM Client:** (See `src/lib/ai/client.ts`) The system features a **multi-provider failover strategy**. If Groq (Llama 3) fails or rate-limits, it seamlessly hot-swaps to Gemini (Google) without dropping the request.
+- **🛡️ Self-Healing JSON:** LLMs often output broken or truncated JSON. I wrote a custom parser that **auto-repairs** malformed JSON (closing missing braces, fixing quotes) to prevent downstream crashes.
+- **🧬 Autonomous Optimization:** The "Improver" agent (`src/trigger/optimize-prompt.ts`) implements the **ProTeGi** algorithm. It runs experiments against a Golden Dataset, analyzes failures, and *rewrites its own prompt* to improve F1 scores over time. **If I had more time I would have loved to implement this into the intial ranker!!!**
+
 ---
 
 ## ⚡ The Ranking Pipeline
