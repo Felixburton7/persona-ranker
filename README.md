@@ -5,7 +5,7 @@
 
 This was a lot of fun to build! This "**Persona Ranker**" is a system for ranking leads against an Ideal Customer Profile (ICP). It automates the decision-making process of a human researcher, deciding who is a "Decision Maker," "Champion," or "Irrelevant" contact based on their title and company size.
 
-It is built to be **high-precision** (using LLMs for reasoning) but **cost-effective** (using deterministic pre-filters to reduce token usage).
+It is built to be (using LLMs for reasoning) but **cost-effective** (using deterministic pre-filters to reduce token usage).
 
 For a deeper dive into the methodology, check out the **[Architecture Docs](https://persona-ranker-five.vercel.app/docs)**.
 
