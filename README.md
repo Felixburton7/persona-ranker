@@ -20,11 +20,11 @@ The project is organized into three distinct layers:
 
 | Layer | Component | Description |
 |-------|-----------|-------------|
-| **🧠 Logic** | [`src/lib/ranking/prefilter.ts`](src/lib/ranking/prefilter.ts) | **The Guardrails**. A deterministic Regex engine that filters out obvious mismatches (HR, Interns) *before* the LLM, saving ~40% cost. |
-| **🧠 Logic** | [`src/lib/ranking/prompt.ts`](src/lib/ranking/prompt.ts) | **The Context Builder**. Constructs dynamic prompts with rubrics tailored to company size (e.g., *Startup* vs. *Enterprise* logic). |
-| **💪 Muscle** | [`src/trigger/rank-company.ts`](src/trigger/rank-company.ts) | **The Worker**. The main background job that orchestrates validation, pre-filtering, batching, and LLM ranking. |
-| **💪 Muscle** | [`src/trigger/optimize-prompt.ts`](src/trigger/optimize-prompt.ts) | **The Improver**. An autonomous agent that tests prompts against a "Golden Set" to iteratively improve accuracy. |
-| **👀 Face** | [`src/app/page.tsx`](src/app/page.tsx) | **The Dashboard**. Next.js UI for uploading leads and monitoring real-time progress. |
+| **Logic** | [`src/lib/ranking/prefilter.ts`](src/lib/ranking/prefilter.ts) | **The Guardrails**. A deterministic Regex engine that filters out obvious mismatches (HR, Interns) *before* the LLM, saving ~40% cost. |
+| **Logic** | [`src/lib/ranking/prompt.ts`](src/lib/ranking/prompt.ts) | **The Context Builder**. Constructs dynamic prompts with rubrics tailored to company size (e.g., *Startup* vs. *Enterprise* logic). |
+| **Workers** | [`src/trigger/rank-company.ts`](src/trigger/rank-company.ts) | **The Worker**. The main background job that orchestrates validation, pre-filtering, batching, and LLM ranking. |
+| **Workers** | [`src/trigger/optimize-prompt.ts`](src/trigger/optimize-prompt.ts) | **The Improver**. An autonomous agent that tests prompts against a "Golden Set" to iteratively improve accuracy. |
+| **UI/UX** | [`src/app/page.tsx`](src/app/page.tsx) | **The Dashboard**. Next.js UI for uploading leads and monitoring real-time progress. |
 
 ### ✨ Code Architecture Details
 
