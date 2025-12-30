@@ -1,11 +1,14 @@
-# Throxy Persona Rankerge
+# Persona Ranker Challenge
 
 > **Live Demo:** [persona-ranker-five.vercel.app](https://persona-ranker-five.vercel.app)  
 > **Documentation:** [persona-ranker-five.vercel.app/docs](https://persona-ranker-five.vercel.app/docs)
 
-**Persona Ranker** is an intelligent system for ranking B2B sales leads against an Ideal Customer Profile (ICP). It automates the decision-making process of a human researcher, deciding who is a "Decision Maker," "Champion," or "Irrelevant" contact based on their title and company size.
+This was a lot of fun to build! This "**Persona Ranker**" is a system for ranking leads against an Ideal Customer Profile (ICP). It automates the decision-making process of a human researcher, deciding who is a "Decision Maker," "Champion," or "Irrelevant" contact based on their title and company size.
 
 It is built to be **high-precision** (using LLMs for reasoning) but **cost-effective** (using deterministic pre-filters to reduce token usage).
+
+For a deeper dive into the methodology, check out the **[Architecture Docs](https://persona-ranker-five.vercel.app/docs)**.
+
 
 ![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white) ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white) ![Trigger.dev](https://img.shields.io/badge/Trigger.dev-4F46E5?style=for-the-badge&logo=trigger.dev&logoColor=white)
 
