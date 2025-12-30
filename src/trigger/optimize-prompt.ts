@@ -26,6 +26,7 @@ interface OptimizePromptPayload {
     runId: string;
     maxIterations?: number;
     evalSetPath?: string; // Optional: path to eval CSV
+    sessionKey: string; // Required for multi-tenancy
 }
 
 interface IterationResult {
@@ -47,7 +48,9 @@ export const optimizePromptTask = task({
         const supabase = createServerClient();
         if (!supabase) throw new Error("Supabase credentials missing");
 
-        const { runId, maxIterations = 5, evalSetPath } = payload;
+        const { runId, maxIterations = 5, evalSetPath, sessionKey } = payload;
+
+        if (!sessionKey) throw new Error("Session key is required for optimization");
 
         try {
             // 1. Update run status to running
@@ -82,22 +85,21 @@ export const optimizePromptTask = task({
                 estimated_cost_usd: 0
             });
 
-            // 3. Get or create initial prompt version
-            // IMPORTANT: We start with the user's actual prompt from the database (if it exists)
-            // This is the prompt they've been using/optimizing, not the codebase template
+            // 3. Get or create initial prompt version - SCOPED TO SESSION
+            // IMPORTANT: We start with the user's actual prompt from the database (if it exists for this session)
             let { data: activePrompt } = await supabase
                 .from("prompt_versions")
                 .select("*")
                 .eq("is_active", true)
+                .eq("session_key", sessionKey) // Scoped
                 .single();
 
             if (!activePrompt) {
-                // Fallback: Only create from codebase template if no prompt exists in database
-                // This should rarely happen - normally the user will have an active prompt
-                console.log("No active prompt found in database, creating initial version from codebase template");
+                // Fallback: Create initial version from codebase template if no prompt exists for this session
+                console.log(`No active prompt found for session ${sessionKey}, creating initial version from codebase template`);
                 await supabase.from("ai_calls").insert({
                     call_type: "eval_progress",
-                    model: "No active prompt found. Creating initial version from codebase template...",
+                    model: "No existing prompt found. Configuring new optimization session...",
                     input_tokens: 0,
                     output_tokens: 0,
                     estimated_cost_usd: 0
@@ -114,6 +116,7 @@ export const optimizePromptTask = task({
                         version: 1,
                         prompt_text: initialPrompt,
                         is_active: true,
+                        session_key: sessionKey // Assign to session
                     })
                     .select()
                     .single();
@@ -122,7 +125,7 @@ export const optimizePromptTask = task({
                 activePrompt = created;
             } else {
                 // Log which prompt we're starting with
-                console.log(`Starting optimization with existing prompt version ${activePrompt.version} (ID: ${activePrompt.id})`);
+                console.log(`Starting optimization with existing prompt version ${activePrompt.version} (Session: ${sessionKey})`);
                 await supabase.from("ai_calls").insert({
                     call_type: "eval_progress",
                     model: `Starting optimization with your current prompt (version ${activePrompt.version}). This will be evaluated and improved across ${maxIterations} iterations.`,
@@ -252,6 +255,7 @@ export const optimizePromptTask = task({
                         is_active: false,
                         parent_version_id: currentPromptId,
                         gradient_summary: editResult.changesSummary,
+                        session_key: sessionKey // Scope to session
                     })
                     .select()
                     .single();
@@ -280,7 +284,7 @@ export const optimizePromptTask = task({
                     .eq("id", runId);
             }
 
-            // 5. Finalize: Set best prompt as active
+            // 5. Finalize: Set best prompt as active (Scoped to Session)
             await supabase.from("ai_calls").insert({
                 call_type: "eval_progress",
                 model: "Optimization complete! Promoting the best performing version...",
@@ -288,11 +292,15 @@ export const optimizePromptTask = task({
                 output_tokens: 0,
                 estimated_cost_usd: 0
             });
+
+            // Deactivate all prompts for this session
             await supabase
                 .from("prompt_versions")
                 .update({ is_active: false })
+                .eq("session_key", sessionKey) // IMPORTANT: Scope to session
                 .neq("id", bestPromptId);
 
+            // Activate the winner
             await supabase
                 .from("prompt_versions")
                 .update({ is_active: true })

@@ -1,12 +1,16 @@
-
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/db/client";
 import { buildRankingPrompt } from "@/lib/ranking/prompt";
 
 const supabase = createServerClient();
 
-export async function POST() {
+export async function POST(request: NextRequest) {
     try {
+        const sessionKey = request.headers.get("x-session-key");
+        if (!sessionKey) {
+            return NextResponse.json({ error: "Session key required" }, { status: 400 });
+        }
+
         if (!supabase) {
             return NextResponse.json(
                 { error: "Database connection not available" },
@@ -14,13 +18,14 @@ export async function POST() {
             );
         }
 
-        // 0. Cancel any active runs to prevent UI weirdness
+        // 0. Cancel any active runs FOR THIS SESSION to prevent UI weirdness
         const { error: cancelError } = await supabase
             .from("optimization_runs")
             .update({
                 status: "failed",
                 error_message: "Reset by user (Force Stop)"
             })
+            .eq("session_key", sessionKey) // Scoped
             .neq("status", "completed")
             .neq("status", "failed");
 
@@ -34,23 +39,25 @@ export async function POST() {
             [{ id: "test", full_name: "Test User", title: "VP Sales" }]
         );
 
-        // 2. Get latest version number
+        // 2. Get latest version number FOR THIS SESSION
         const { data: latest } = await supabase
             .from("prompt_versions")
             .select("version")
+            .eq("session_key", sessionKey) // Scoped
             .order("version", { ascending: false })
             .limit(1)
             .single();
 
         const nextVersion = (latest?.version || 0) + 1;
 
-        // 3. Deactivate all existing prompts
+        // 3. Deactivate all existing prompts FOR THIS SESSION
         await supabase
             .from("prompt_versions")
             .update({ is_active: false })
+            .eq("session_key", sessionKey) // Scoped
             .eq("is_active", true);
 
-        // 4. Insert new "Reset" prompt
+        // 4. Insert new "Reset" prompt FOR THIS SESSION
         const { data: newPrompt, error } = await supabase
             .from("prompt_versions")
             .insert({
@@ -58,6 +65,7 @@ export async function POST() {
                 prompt_text: defaultPrompt,
                 is_active: true,
                 gradient_summary: "Reset to default template",
+                session_key: sessionKey // Scoped
             })
             .select()
             .single();

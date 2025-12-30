@@ -74,3 +74,6 @@ temp_app/
 
 # assets
 _assets/
+
+# migrations
+migrations

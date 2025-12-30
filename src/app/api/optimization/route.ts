@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
 
         // Check content type to determine if it's a file upload or JSON
         const contentType = request.headers.get("content-type") || "";
+        const sessionKey = request.headers.get("x-session-key");
+
+        if (!sessionKey) {
+            return NextResponse.json({ error: "Session key required" }, { status: 400 });
+        }
 
         let maxIterations = 3;
         let evalSetPath: string | undefined = undefined;
@@ -57,7 +62,7 @@ export async function POST(request: NextRequest) {
             evalSetContent = body.evalSetContent; // Direct content if provided
         }
 
-        // Create optimization run record
+        // Create optimization run record SC_SCOPED
         const { data: run, error: createError } = await supabase
             .from("optimization_runs")
             .insert({
@@ -65,6 +70,7 @@ export async function POST(request: NextRequest) {
                 max_iterations: maxIterations,
                 iterations_completed: 0,
                 improvement_history: [],
+                session_key: sessionKey
             })
             .select()
             .single();
@@ -83,6 +89,7 @@ export async function POST(request: NextRequest) {
                 runId: run.id,
                 maxIterations,
                 evalSetPath, // Pass custom eval set path if uploaded
+                sessionKey, // Pass session key to task
             });
 
             // Update run with trigger handle ID
@@ -128,10 +135,15 @@ export async function GET(request: NextRequest) {
     }
     const url = new URL(request.url);
     const runId = url.searchParams.get("runId");
+    const sessionKey = request.headers.get("x-session-key");
+
+    if (!sessionKey) {
+        return NextResponse.json({ runs: [] }); // Empty if no session key
+    }
 
     try {
         if (runId) {
-            // Get specific run
+            // Get specific run (ensure owns session)
             const { data: run, error } = await supabase
                 .from("optimization_runs")
                 .select(`
@@ -141,6 +153,7 @@ export async function GET(request: NextRequest) {
           )
         `)
                 .eq("id", runId)
+                .eq("session_key", sessionKey) // Security scope
                 .single();
 
             if (error) {
@@ -149,7 +162,7 @@ export async function GET(request: NextRequest) {
 
             return NextResponse.json(run);
         } else {
-            // Get all runs (most recent first)
+            // Get all runs (most recent first) for this session
             const { data: runs, error } = await supabase
                 .from("optimization_runs")
                 .select(`
@@ -158,6 +171,7 @@ export async function GET(request: NextRequest) {
             id, version, composite_score
           )
         `)
+                .eq("session_key", sessionKey) // Security scope
                 .order("created_at", { ascending: false })
                 .limit(10);
 

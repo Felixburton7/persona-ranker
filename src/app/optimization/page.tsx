@@ -35,22 +35,38 @@ export default function OptimizationPage() {
     // Real-time commentary state
     const [commentary, setCommentary] = useState<string>("");
 
+    // Session Management
+    const [sessionKey, setSessionKey] = useState<string>("");
+
     useEffect(() => {
-        loadRuns();
-        loadCurrentPrompt();
+        // Initialize Session Key
+        let key = localStorage.getItem("optimization_session_key");
+        if (!key) {
+            key = crypto.randomUUID();
+            localStorage.setItem("optimization_session_key", key);
+        }
+        setSessionKey(key);
+
+        loadRuns(false, key);
+        loadCurrentPrompt(false, key);
         fetchSavedKeys();
     }, []);
 
-    const loadCurrentPrompt = async (isSilent = false) => {
+    const loadCurrentPrompt = async (isSilent = false, key?: string) => {
+        const currentKey = key || sessionKey;
+        if (!currentKey) return;
+
         if (!isSilent) setLoading(true);
         const supabaseClient = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         );
 
+        // Fetch prompts only for this session
         const { data: versions } = await supabaseClient
             .from("prompt_versions")
             .select("*")
+            .eq("session_key", currentKey)
             .order("version", { ascending: false });
 
         if (versions && versions.length > 0) {
@@ -58,47 +74,62 @@ export default function OptimizationPage() {
             const active = versions.find((v: PromptVersion) => v.is_active) || versions[0];
             setCurrentPrompt(active);
 
-            // Only update selected if not explicitly set by user interaction
             if (!selectedVersionId) {
                 setSelectedVersionId(active.id);
             }
 
-            // Find parent to show diff
             if (active.parent_version_id) {
                 const parent = versions.find((v: PromptVersion) => v.id === active.parent_version_id);
                 if (parent) {
                     setPreviousPromptText(parent.prompt_text);
                 }
             }
+        } else {
+            // No prompts for this session yet
+            setPromptVersions([]);
+            setCurrentPrompt(null);
+            setPreviousPromptText(null);
         }
         if (!isSilent) setLoading(false);
     };
 
     // Poll for commentary and status updates
     useEffect(() => {
+        if (!sessionKey) return;
+
         const supabaseClient = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         );
 
-        // Subscriptions for real-time updates
+        // Subscriptions for real-time updates - Scoped to Session
         const channel = supabaseClient
-            .channel('optimization-updates')
+            .channel(`optimization-updates-${sessionKey}`)
             .on(
                 "postgres_changes",
                 {
                     event: "INSERT",
                     schema: "public",
                     table: "ai_calls",
+                    // Note: We can't easily filter ai_calls by session_key directly as it's not on the table
+                    // But we can rely on the fact that only runs associated with this session will trigger specific updates?
+                    // Actually, for ai_calls, we might hear others. 
+                    // To be strictly isolated, we'd need session_key on ai_calls or join.
+                    // For now, we'll accept hearing "global" ai_calls or hope for the best, 
+                    // OR better: rely on optimization_runs updates which ARE scoped.
+                    // Let's keep ai_calls global-ish for commentary, or filter client-side if we could link it.
+                    // Ideally ai_calls should have session_key too, but that's a bigger migration.
+                    // We will just filter optimization_runs strictly.
                 },
                 (payload) => {
+                    // Update commentary regardless (fun factor), or filter if possible
                     const record = payload.new;
                     if (record.call_type === 'gradient') {
                         setCommentary(`Analyzing error patterns and identifying rule weaknesses...`);
                     } else if (record.call_type === 'optimization') {
                         setCommentary(`Running benchmark: Evaluating prompt on test leads...`);
                     } else if (record.call_type === 'eval_progress') {
-                        setCommentary(record.model); // Contains "Evaluating: X/Y companies"
+                        setCommentary(record.model);
                     } else if (record.call_type === 'edit') {
                         setCommentary(`Applying textual gradient descent to refine prompt instructions...`);
                     }
@@ -110,10 +141,11 @@ export default function OptimizationPage() {
                     event: "*",
                     schema: "public",
                     table: "optimization_runs",
+                    filter: `session_key=eq.${sessionKey}`
                 },
                 () => {
-                    loadRuns(true);
-                    loadCurrentPrompt(true);
+                    loadRuns(true, sessionKey);
+                    loadCurrentPrompt(true, sessionKey);
                 }
             )
             .on(
@@ -122,28 +154,36 @@ export default function OptimizationPage() {
                     event: "INSERT",
                     schema: "public",
                     table: "prompt_versions",
+                    filter: `session_key=eq.${sessionKey}`
                 },
                 () => {
-                    loadCurrentPrompt(true);
+                    loadCurrentPrompt(true, sessionKey);
                 }
             )
             .subscribe();
 
         // Fallback polling
         const interval = setInterval(() => {
-            loadRuns(true);
+            loadRuns(true, sessionKey);
         }, 5000);
 
         return () => {
             supabaseClient.removeChannel(channel);
             clearInterval(interval);
         };
-    }, []);
+    }, [sessionKey]);
 
-    const loadRuns = async (isSilent = false) => {
+    const loadRuns = async (isSilent = false, key?: string) => {
+        const currentKey = key || sessionKey;
+        if (!currentKey) return;
+
         try {
             if (!isSilent) setLoading(true);
-            const res = await fetch("/api/optimization");
+            const res = await fetch("/api/optimization", {
+                headers: {
+                    "x-session-key": currentKey
+                }
+            });
             const data = await res.json();
 
             if (data.runs) {
@@ -155,7 +195,7 @@ export default function OptimizationPage() {
                 setActiveRunId(runningRun?.id || null);
 
                 if (runningRun) {
-                    loadCurrentPrompt(true);
+                    loadCurrentPrompt(true, currentKey);
                 }
             }
         } catch (error) {
@@ -208,6 +248,7 @@ export default function OptimizationPage() {
                 const formData = new FormData();
                 formData.append("maxIterations", "5");
                 formData.append("evalSetCsv", file);
+                formData.append("sessionKey", sessionKey); // Pass session key
 
                 if (config.preferredModel) formData.append("preferredModel", config.preferredModel);
                 if (config.apiKey) formData.append("apiKey", config.apiKey);
@@ -215,13 +256,19 @@ export default function OptimizationPage() {
 
                 res = await fetch("/api/optimization", {
                     method: "POST",
+                    headers: {
+                        "x-session-key": sessionKey // Redundant but good for middleware if any
+                    },
                     body: formData,
                 });
             } else {
-                const payload = { ...config, maxIterations: 5 };
+                const payload = { ...config, maxIterations: 5, sessionKey };
                 res = await fetch("/api/optimization", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-session-key": sessionKey
+                    },
                     body: JSON.stringify(payload),
                 });
             }
@@ -246,13 +293,16 @@ export default function OptimizationPage() {
             setLoading(true);
             const res = await fetch("/api/prompts/reset", {
                 method: "POST",
+                headers: {
+                    "x-session-key": sessionKey // Pass session key
+                }
             });
             const data = await res.json();
 
             if (data.success) {
                 setActiveRunId(null);
-                await loadCurrentPrompt();
-                await loadRuns();
+                await loadCurrentPrompt(false, sessionKey);
+                await loadRuns(false, sessionKey);
                 setShowResetModal(false);
             } else {
                 alert(`Failed to reset: ${data.error}`);

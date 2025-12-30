@@ -199,3 +199,25 @@ CREATE TRIGGER trigger_update_api_keys_updated_at
 
 -- Done
 SELECT 'Schema initialized successfully!' AS status;
+
+
+-- Migration: Multi-Tenant Optimization
+-- Adds session_key to optimization_runs and prompt_versions to allow user isolation
+
+-- 1. Add session_key to optimization_runs
+ALTER TABLE optimization_runs 
+ADD COLUMN IF NOT EXISTS session_key TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_optimization_runs_session_key 
+ON optimization_runs(session_key);
+
+-- 2. Add session_key to prompt_versions
+ALTER TABLE prompt_versions 
+ADD COLUMN IF NOT EXISTS session_key TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_prompt_versions_session_key 
+ON prompt_versions(session_key);
+
+-- 3. (Optional) Backfill existing data with a default session key if needed
+-- UPDATE optimization_runs SET session_key = 'legacy' WHERE session_key IS NULL;
+-- UPDATE prompt_versions SET session_key = 'legacy' WHERE session_key IS NULL;
