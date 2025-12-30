@@ -22,7 +22,7 @@ import { SUPPORTED_MODELS } from "../constants";
 const GROQ_DEFAULT_KEY = process.env.GROQ_API_KEY || "dummy_key_for_build";
 
 /** Default Gemini API key (from environment or hardcoded fallback) */
-const GEMINI_DEFAULT_KEY = process.env.GEMINI_API_KEY || "AIzaSyCfVY1Jzzj_xqnZXpOSZpnsCXb-Xf-CUmU";
+const GEMINI_DEFAULT_KEY = process.env.GEMINI_API_KEY || "";
 
 /** Provider base URLs */
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";

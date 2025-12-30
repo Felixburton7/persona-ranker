@@ -122,7 +122,7 @@ export function UploadForm({ onJobCreated, jobId }: UploadFormProps) {
         // Default mode uses Felix's Gemini Flash
         if (configMode === 'default') {
             formData.append("preferredModel", "gemini-2.5-flash");
-            formData.append("geminiApiKey", "AIzaSyCfVY1Jzzj_xqnZXpOSZpnsCXb-Xf-CUmU");
+            // Do not send hardcoded key; let server use env var
         }
 
         // Custom Groq/Gemini configurations
