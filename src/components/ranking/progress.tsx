@@ -5,6 +5,8 @@ import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 import { useRunningCommentary } from "@/hooks";
 import { CostTicker } from "@/components/ranking/cost-ticker";
+import { UPDATING_INDICATOR_RESET_MS, NEARLY_THERE_THRESHOLD } from "@/core/constants";
+import styles from "./progress.module.css";
 
 export function RankingProgress({ jobId }: { jobId: string }) {
     const progress = useJobProgress(jobId);
@@ -16,10 +18,10 @@ export function RankingProgress({ jobId }: { jobId: string }) {
         if (progress && progress.processed_leads !== prevLeadsProcessed) {
             setIsUpdating(true);
             setPrevLeadsProcessed(progress.processed_leads);
-            const timer = setTimeout(() => setIsUpdating(false), 1000);
+            const timer = setTimeout(() => setIsUpdating(false), UPDATING_INDICATOR_RESET_MS);
             return () => clearTimeout(timer);
         }
-    }, [progress?.processed_leads]);
+    }, [progress?.processed_leads, prevLeadsProcessed]);
 
     if (!progress) return null;
 
@@ -71,28 +73,14 @@ export function RankingProgress({ jobId }: { jobId: string }) {
         : 0;
 
     const isRunning = progress.status === "running" || progress.status === "pending";
-    const isNearlyThere = percent > 95 && percent < 100;
+    const isNearlyThere = percent > NEARLY_THERE_THRESHOLD && percent < 100;
 
     return (
-        <div className="p-4 border border-stone-200 rounded-lg space-y-4 bg-white shadow-sm my-4 relative overflow-hidden">
-            <style jsx>{`
-                @keyframes pulse-dot {
-                    0%, 100% { opacity: 1; transform: scale(1); }
-                    50% { opacity: 0.5; transform: scale(1.2); }
-                }
-                @keyframes count-update {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.15); color: #22c55e; }
-                    100% { transform: scale(1); }
-                }
-                .pulse-indicator { animation: pulse-dot 1.5s ease-in-out infinite; }
-                .count-updating { animation: count-update 0.5s ease-out; }
-            `}</style>
-
+        <div className={styles.container}>
             {/* Background texture or subtle gradient */}
-            <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none"></div>
+            <div className={styles.backgroundTexture} />
 
-            <div className="space-y-4 relative z-10">
+            <div className={styles.content}>
                 {/* Main Progress Bar */}
                 <div className="space-y-2">
                     <div className="flex justify-between items-end">
@@ -105,8 +93,8 @@ export function RankingProgress({ jobId }: { jobId: string }) {
                     <div className="flex justify-between text-xs text-stone-400">
                         <span>Individual Leads Analyzed</span>
                         <div className="flex items-center gap-2">
-                            {isNearlyThere && <span className="text-green-600 font-bold animate-pulse">Nearly There!</span>}
-                            <span className={`font-mono font-medium ${isUpdating ? "count-updating" : ""}`}>
+                            {isNearlyThere && <span className={styles.nearlyThere}>Nearly There!</span>}
+                            <span className={`${styles.statsCounter} ${isUpdating ? styles.countUpdating : ""}`}>
                                 {progress.processed_leads} / {progress.total_leads}
                             </span>
                         </div>
@@ -127,7 +115,7 @@ export function RankingProgress({ jobId }: { jobId: string }) {
                 {isRunning && (
                     <div className="space-y-3">
                         <div className="bg-stone-50 border border-stone-100 rounded-md p-3 flex items-start gap-3 transition-all duration-500">
-                            <div className="mt-1.5 w-2 h-2 shrink-0 rounded-full bg-blue-500 pulse-indicator" />
+                            <div className={`${styles.statusIndicator} ${styles.pulseIndicator}`} />
                             <div className="space-y-1 flex-1">
                                 <div className="flex items-center justify-between">
                                     <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider">

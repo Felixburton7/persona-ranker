@@ -1,5 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { LLMResult, MappedResult } from "@/types/ranking";
+import { LLMResult, MappedResult, LLMRoleType } from "@/types/ranking";
+import { logger } from "@/core/logger";
+import { RELEVANCE_SCORE_THRESHOLD, DECISION_MAKER_SCORE_THRESHOLD } from "@/core/constants";
 
 // Re-export types for backward compatibility
 export type { LLMResult, LLMResponse, MappedResult } from "@/types/ranking";
@@ -26,12 +28,12 @@ export function mapResults(
         const realId = idMap.get(Number(res.id)); // Coerce to number just in case
 
         if (!realId) {
-            console.warn(`Invalid short ID ${res.id} - skipping`);
+            logger.warn(`Invalid short ID - skipping`, { id: res.id });
             continue;
         }
 
         if (seenIds.has(realId)) {
-            console.warn(`Duplicate ID ${res.id} - skipping`);
+            logger.warn(`Duplicate ID - skipping`, { id: res.id });
             continue;
         }
 
@@ -43,14 +45,14 @@ export function mapResults(
 
         // If score is high but is_relevant is false/missing, trust the score
         const score = Number(res.score) || 0;
-        if (score >= 50 && !isRelevant) {
+        if (score >= RELEVANCE_SCORE_THRESHOLD && !isRelevant) {
             isRelevant = true;
         }
 
         // Ensure role_type is valid
-        const roleType = ["decision_maker", "champion", "irrelevant"].includes(res.role_type)
+        const roleType: LLMRoleType = ["decision_maker", "champion", "irrelevant"].includes(res.role_type)
             ? res.role_type
-            : (score >= 90 ? "decision_maker" : score >= 50 ? "champion" : "irrelevant");
+            : (score >= DECISION_MAKER_SCORE_THRESHOLD ? "decision_maker" : score >= RELEVANCE_SCORE_THRESHOLD ? "champion" : "irrelevant");
 
         seenIds.add(realId);
         mapped.push({
@@ -58,7 +60,7 @@ export function mapResults(
             result: {
                 id: Number(res.id),
                 is_relevant: !!isRelevant,
-                role_type: roleType as any,
+                role_type: roleType,
                 score: score,
                 rank_within_company: typeof res.rank_within_company === 'number' ? res.rank_within_company : null,
                 rubric: res.rubric || { department_fit: 0, seniority_fit: 0, size_fit: 0 },
@@ -71,7 +73,7 @@ export function mapResults(
     // Fill missing candidates with defaults
     for (const candidate of batch) {
         if (!seenIds.has(candidate.id)) {
-            console.warn(`Missing result for candidate - filling default`);
+            logger.warn(`Missing result for candidate - filling default`);
             mapped.push({
                 realId: candidate.id,
                 result: {

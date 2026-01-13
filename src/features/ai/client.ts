@@ -13,6 +13,11 @@
 import OpenAI from "openai";
 import { getApiKeyForModel } from "@/services/api-keys";
 import { SUPPORTED_MODELS } from "@/config/constants";
+import { logger } from "@/core/logger";
+import {
+  DEFAULT_MAX_TOKENS,
+  RETRYABLE_STATUS_CODES,
+} from "@/core/constants";
 
 // ============================================================================
 // CONFIGURATION
@@ -138,7 +143,7 @@ export async function completionWithRetry(
     ? { groq: sessionKeys } // Legacy: string = Groq key
     : (sessionKeys || {});
 
-  let lastError: any;
+  let lastError: Error & { status?: number; message?: string } | null = null;
 
   // Try each model in order
   for (let i = 0; i < uniqueModels.length; i++) {
@@ -147,7 +152,7 @@ export async function completionWithRetry(
 
     try {
       if (i > 0) {
-        console.log(`↻ Fallback ${i}/${uniqueModels.length - 1}: ${model}`);
+        logger.info(`Fallback attempt`, { attempt: i, total: uniqueModels.length - 1, model });
       }
 
       const config = await getProviderConfig(model, keys);
@@ -158,19 +163,20 @@ export async function completionWithRetry(
       });
 
       return await client.chat.completions.create({
-        max_tokens: 8192, // Healthy default for modern models
+        max_tokens: DEFAULT_MAX_TOKENS,
         ...params,
         model,
       });
 
-    } catch (error: any) {
-      lastError = error;
+    } catch (error: unknown) {
+      const err = error as Error & { status?: number; message?: string };
+      lastError = err;
 
       // Retryable errors - continue to next model
-      const isRetryable = [429, 413, 404, 400, 401, 503].includes(error.status);
+      const isRetryable = RETRYABLE_STATUS_CODES.includes(err.status || 0);
 
       if (isRetryable) {
-        console.warn(`⚠ ${model} failed (${error.status}): ${error.message?.substring(0, 100)}...`);
+        logger.warn(`Model failed`, { model, status: err.status, error: err.message?.substring(0, 100) });
         continue;
       }
 
@@ -183,32 +189,32 @@ export async function completionWithRetry(
   const provider = isStrictGeminiMode ? "Gemini" : "Groq";
   let errorMessage: string;
 
-  const status = (lastError as any)?.status;
-  const errorMsg = (lastError as any)?.message;
+  const status = lastError?.status;
+  const errorMsg = lastError?.message;
 
   if (isStrictGeminiMode) {
     // Gemini-specific error messages
     switch (status) {
       case 429:
-        errorMessage = `❌ Gemini Rate Limit: Quota exceeded. Check billing at https://ai.google.dev/usage`;
+        errorMessage = `Gemini Rate Limit: Quota exceeded. Check billing at https://ai.google.dev/usage`;
         break;
       case 401:
-        errorMessage = `❌ Gemini Auth Failed: Invalid API key. Check key at https://aistudio.google.com/app/apikey`;
+        errorMessage = `Gemini Auth Failed: Invalid API key. Check key at https://aistudio.google.com/app/apikey`;
         break;
       case 404:
-        errorMessage = `❌ Gemini Model Not Found: '${params.model}' unavailable. Try gemini-1.5-flash or gemini-1.5-pro`;
+        errorMessage = `Gemini Model Not Found: '${params.model}' unavailable. Try gemini-1.5-flash or gemini-1.5-pro`;
         break;
       default:
-        errorMessage = `❌ Gemini Error: All ${uniqueModels.length} models failed. Last: ${errorMsg?.substring(0, 150)}`;
+        errorMessage = `Gemini Error: All ${uniqueModels.length} models failed. Last: ${errorMsg?.substring(0, 150)}`;
     }
   } else {
     errorMessage = `All ${uniqueModels.length} models exhausted. Last error: ${errorMsg?.substring(0, 150)}`;
   }
 
-  console.error(`🚨 ${errorMessage}`);
+  logger.error(`All models exhausted`, { errorMessage, provider, modelsAttempted: uniqueModels.length });
 
   // Create a structured error object
-  const error: any = new Error(errorMessage);
+  const error = new Error(errorMessage) as Error & { status: number; provider: string; modelsAttempted: string[] };
   error.status = status || 429;
   error.provider = provider;
   error.modelsAttempted = uniqueModels;

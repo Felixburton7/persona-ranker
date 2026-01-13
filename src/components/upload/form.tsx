@@ -140,15 +140,19 @@ export function UploadForm({ onJobCreated, jobId }: UploadFormProps) {
                 body: formData,
             });
 
-            const data = await res.json();
+            const response = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || "Upload failed");
+                // Handle standardized error response
+                throw new Error(response.error?.message || "Upload failed");
             }
 
+            // Handle standardized success response
+            const { jobId } = response.data;
+
             // Set the current job ID to track its progress
-            setCurrentJobId(data.jobId);
-            onJobCreated(data.jobId);
+            setCurrentJobId(jobId);
+            onJobCreated(jobId);
             // Don't set loading to false here - let the job progress monitor handle it
         } catch (err) {
             setError((err as Error).message);

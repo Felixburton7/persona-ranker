@@ -6,29 +6,10 @@
 
 import { supabase } from '@/core/db/client';
 import { DatabaseError, NotFoundError } from '@/core/errors';
+import { RankingJob, JobProgress, JobStatus } from '@/types/jobs';
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
-export interface RankingJob {
-    id: string;
-    status: 'pending' | 'running' | 'completed' | 'failed';
-    total_companies: number;
-    total_leads: number;
-    processed_leads: number;
-    started_at: string;
-    completed_at?: string;
-    preferred_model?: string;
-    error?: string;
-}
-
-export interface JobProgress {
-    status: RankingJob['status'];
-    total_leads: number;
-    processed_leads: number;
-    error?: string;
-}
+// Re-export for backward compatibility
+export type { RankingJob, JobProgress, JobStatus } from '@/types/jobs';
 
 // =============================================================================
 // SERVICE FUNCTIONS
@@ -62,12 +43,20 @@ export async function getJobProgress(jobId: string): Promise<JobProgress> {
     const job = await getJobById(jobId);
 
     return {
+        id: job.id,
         status: job.status,
+        total_companies: job.total_companies,
+        processed_companies: job.processed_companies,
         total_leads: job.total_leads,
         processed_leads: job.processed_leads,
         error: job.error,
+        trigger_batch_id: job.trigger_batch_id,
+        partial_completion: job.partial_completion,
+        skipped_leads_count: job.skipped_leads_count,
+        rate_limit_error: job.rate_limit_error,
     };
 }
+
 
 /**
  * Updates a job's status.

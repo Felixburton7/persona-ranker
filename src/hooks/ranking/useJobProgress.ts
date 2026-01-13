@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/core/db/client";
 import { JobProgress } from "@/types/jobs";
+import { PROGRESS_POLL_INTERVAL_MS } from "@/core/constants";
 
 // Re-export for backward compatibility
 export type { JobProgress } from "@/types/jobs";
@@ -68,8 +69,8 @@ export function useJobProgress(jobId: string | null) {
             )
             .subscribe();
 
-        // Fallback polling (every 3 seconds)
-        pollingInterval = setInterval(fetchData, 3000);
+        // Fallback polling
+        pollingInterval = setInterval(fetchData, PROGRESS_POLL_INTERVAL_MS);
 
         return () => {
             supabase.removeChannel(channel);

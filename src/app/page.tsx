@@ -8,6 +8,7 @@ import { RankingProgress } from "@/components/ranking/progress";
 import { LeadsTable } from "@/components/leads/table";
 import { columns } from "@/components/leads/columns";
 import { ScoutShowcase } from "@/components/scout/scout-showcase";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export default function Home() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight">
             <div className="w-8 h-8 bg-black text-white flex items-center justify-center rounded-sm">
-              <Layers size={16} strokeWidth={3} />
+              <Layers size={16} strokeWidth={3} aria-hidden="true" />
             </div>
             <span className="text-[#1A1A1A]">
               lead
@@ -56,7 +57,7 @@ export default function Home() {
       </nav>
 
       {/* Main Content */}
-      <main className="p-8 relative">
+      <main className="p-8 relative" role="main">
 
         <div className="max-w-6xl mx-auto space-y-8">
           <header className={`space-y-6 transition-all duration-700 ease-in-out ${jobId ? 'pt-0' : 'pt-10'}`}>
@@ -74,13 +75,23 @@ export default function Home() {
             </p>
           </header>
 
-          <UploadForm onJobCreated={handleJobCreated} jobId={jobId} />
+          <ErrorBoundary title="Failed to load upload form">
+            <UploadForm onJobCreated={handleJobCreated} jobId={jobId} />
+          </ErrorBoundary>
 
           {jobId && (
             <div className="space-y-8 animate-in fade-in duration-500">
-              <RankingProgress key={`progress-${jobId}`} jobId={jobId} />
-              <LeadsTable key={`table-${jobId}`} jobId={jobId} columns={columns} />
-              <ScoutShowcase key={`scout-${jobId}`} jobId={jobId} />
+              <ErrorBoundary title="Failed to load ranking progress">
+                <RankingProgress key={`progress-${jobId}`} jobId={jobId} />
+              </ErrorBoundary>
+
+              <ErrorBoundary title="Failed to load leads table">
+                <LeadsTable key={`table-${jobId}`} jobId={jobId} columns={columns} />
+              </ErrorBoundary>
+
+              <ErrorBoundary title="Failed to load company scout">
+                <ScoutShowcase key={`scout-${jobId}`} jobId={jobId} />
+              </ErrorBoundary>
             </div>
           )}
         </div>
@@ -88,3 +99,4 @@ export default function Home() {
     </div >
   );
 }
+

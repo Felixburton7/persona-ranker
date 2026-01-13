@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/core/db/client'
+import { logger } from '@/core/logger'
+import {
+    REALTIME_DEBOUNCE_MS,
+    UPDATE_HIGHLIGHT_DURATION_MS,
+    POSITION_CHANGE_ANIMATION_MS,
+} from '@/core/constants'
 import { Lead } from '@/types/leads'
 import { getLeadsByJobId, sortLeads } from '@/services/leads'
 
@@ -45,12 +51,12 @@ export function useLeads(jobId: string) {
 
             if (changedIds.size > 0) {
                 setPositionChanged(changedIds)
-                setTimeout(() => setPositionChanged(new Set()), 600)
+                setTimeout(() => setPositionChanged(new Set()), POSITION_CHANGE_ANIMATION_MS)
             }
 
             setData(sorted)
         } catch (error) {
-            console.error('Failed to fetch leads:', error)
+            logger.error('Failed to fetch leads', { error: (error as Error).message })
         } finally {
             setLoading(false)
         }
@@ -64,7 +70,7 @@ export function useLeads(jobId: string) {
         let debounceTimer: NodeJS.Timeout
         const debouncedFetch = () => {
             clearTimeout(debounceTimer)
-            debounceTimer = setTimeout(fetchData, 500)
+            debounceTimer = setTimeout(fetchData, REALTIME_DEBOUNCE_MS)
         }
 
         // Subscribe to realtime updates
@@ -79,7 +85,7 @@ export function useLeads(jobId: string) {
                         next.delete(leadId)
                         return next
                     })
-                }, 2000)
+                }, UPDATE_HIGHLIGHT_DURATION_MS)
                 debouncedFetch()
             })
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => {

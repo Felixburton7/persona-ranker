@@ -77,3 +77,68 @@ export interface LeadInsert {
     raw_json?: Record<string, unknown>;
 }
 
+/**
+ * Lead excluded during pre-filtering.
+ */
+export interface ExcludedLead {
+    id: string;
+    title: string;
+    title_normalized: string;
+    excluded_by_gate: boolean;
+    exclusion_reason: string;
+    is_relevant: false;
+    role_type: 'irrelevant';
+    relevance_score: 0;
+    reasoning: string;
+    ranked_at: string;
+}
+
+/**
+ * Target lead for company scout task.
+ */
+export interface ScoutTargetLead {
+    id: string;
+    full_name: string;
+    title: string;
+    company_id: string;
+    rank_within_company: number | null;
+    scout_data?: ScoutData;
+}
+
+/**
+ * Scout data attached to a lead after scouting.
+ */
+export interface ScoutData {
+    scouted_at: string;
+    email_draft: {
+        subject: string;
+        body: string;
+    };
+    company_context_summary: string;
+}
+
+/**
+ * Lead with normalized title (used during ranking).
+ */
+export interface LeadWithNormalizedTitle extends LeadRow {
+    title_normalized: string;
+}
+
+/**
+ * Lead update payload for ranking results.
+ */
+export interface LeadRankingUpdate {
+    id: string;
+    company_id: string;
+    title: string;
+    title_normalized: string | null;
+    is_relevant?: boolean;
+    role_type?: string;
+    relevance_score?: number;
+    rank_within_company?: number | null;
+    reasoning?: string;
+    rubric_scores?: RubricScores;
+    flags?: string[];
+    ranked_at?: string;
+}
+

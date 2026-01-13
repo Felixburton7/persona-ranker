@@ -1,6 +1,14 @@
 import { task, metadata, wait } from "@trigger.dev/sdk/v3";
 import { createServerClient } from "@/core/db/client";
+import { logger } from "@/core/logger";
+import {
+    MAX_RANKING_POLL_ATTEMPTS,
+    RANKING_POLL_INTERVAL_SECONDS,
+    RANKING_STABILIZATION_WAIT_SECONDS,
+    SCOUT_TASK_MAX_DURATION,
+} from "@/core/constants";
 import { scoutCompany, generatePersonalizedEmail, generateCompanySummary } from "@/features/scout";
+import { ScoutTargetLead, ScoutData } from "@/types/leads";
 
 interface CompanyScoutPayload {
     jobId: string;
@@ -13,7 +21,7 @@ interface CompanyScoutPayload {
 
 export const companyScoutTask = task({
     id: "company-scout",
-    maxDuration: 600, // 10 mins
+    maxDuration: SCOUT_TASK_MAX_DURATION,
     retry: {
         maxAttempts: 2,
     },
@@ -40,7 +48,7 @@ export const companyScoutTask = task({
             let scrapedContext = "";
 
             if (company.domain) {
-                console.log(`Scouting ${company.domain}...`);
+                logger.info(`Scouting company domain`, { domain: company.domain });
                 const result = await scoutCompany(company.domain);
                 if (result) {
                     scrapedContext = result.context;
@@ -55,20 +63,20 @@ export const companyScoutTask = task({
 
                     metadata.set("scouted", true);
                 } else {
-                    console.warn("Scouting returned no data");
+                    logger.warn(`Scouting returned no data`);
                     metadata.set("scouted", false);
                 }
             } else {
-                console.warn("No domain to scout");
+                logger.warn(`No domain to scout`);
             }
 
             if (!scrapedContext) {
-                console.log("No context to generate emails used. Exiting.");
+                logger.info(`No context to generate emails. Exiting.`);
                 return;
             }
 
             // 3. Fetch Target Lead(s)
-            let targetLeads: any[] = [];
+            let targetLeads: ScoutTargetLead[] = [];
 
             if (leadId) {
                 // Specific lead provided - just fetch that one
@@ -80,37 +88,36 @@ export const companyScoutTask = task({
                     .single();
 
                 if (leadError || !specificLead) {
-                    console.warn("Specified lead not found. Exiting.");
+                    logger.warn(`Specified lead not found. Exiting.`);
                     return;
                 }
 
-                targetLeads = [specificLead];
+                targetLeads = [specificLead as ScoutTargetLead];
             } else {
                 // Wait for ranking and fetch top leads
-                console.log("Waiting for ranking results...");
+                logger.info(`Waiting for ranking results...`);
 
                 let isRanked = false;
                 let attempts = 0;
-                const MAX_POLL_ATTEMPTS = 60; // 5 mins
 
-                while (!isRanked && attempts < MAX_POLL_ATTEMPTS) {
-                    const { count, error } = await supabase
+                while (!isRanked && attempts < MAX_RANKING_POLL_ATTEMPTS) {
+                    const { count } = await supabase
                         .from("leads")
                         .select("*", { count: "exact", head: true })
                         .eq("company_id", companyId)
                         .not("rank_within_company", "is", null);
 
                     if (count && count > 0) {
-                        await wait.for({ seconds: 10 });
+                        await wait.for({ seconds: RANKING_STABILIZATION_WAIT_SECONDS });
                         isRanked = true;
                     } else {
-                        await wait.for({ seconds: 5 });
+                        await wait.for({ seconds: RANKING_POLL_INTERVAL_SECONDS });
                         attempts++;
                     }
                 }
 
                 if (!isRanked) {
-                    console.warn("Timed out waiting for ranking.");
+                    logger.warn(`Timed out waiting for ranking.`);
                     return;
                 }
 
@@ -127,12 +134,16 @@ export const companyScoutTask = task({
 
                 // User requested just "one of them" for the section to appear
                 // We'll just do the top ranked lead
-                targetLeads = [topLeads[0]];
-                console.log(`Generating email for top lead: ${targetLeads[0].full_name}`);
+                targetLeads = [topLeads[0] as ScoutTargetLead];
+                logger.info(`Generating email for top lead`, { leadName: targetLeads[0].full_name });
             }
 
             // 4. Generate Emails
-            const updates = [];
+            interface ScoutUpdate {
+                id: string;
+                scout_data: ScoutData;
+            }
+            const updates: ScoutUpdate[] = [];
             for (const lead of targetLeads) {
                 try {
                     const emailJson = await generatePersonalizedEmail(
@@ -157,8 +168,9 @@ export const companyScoutTask = task({
                     };
 
                     updates.push({ id: lead.id, scout_data: scoutData });
-                } catch (e) {
-                    console.error(`Failed for lead ${lead.id}`, e);
+                } catch (e: unknown) {
+                    const error = e as Error;
+                    logger.error(`Failed to generate email for lead`, { leadId: lead.id, error: error.message });
                 }
             }
 
@@ -170,10 +182,11 @@ export const companyScoutTask = task({
                     .eq("id", update.id);
             }
 
-            console.log("Company Scout Task Completed.");
+            logger.info(`Company Scout Task Completed.`);
 
-        } catch (e) {
-            console.error("Company Scout task failed", e);
+        } catch (e: unknown) {
+            const error = e as Error;
+            logger.error(`Company Scout task failed`, { error: error.message });
             throw e;
         }
     }

@@ -10,19 +10,27 @@
 
 import { task, metadata, tasks } from "@trigger.dev/sdk/v3";
 import { createServerClient } from "@/core/db/client";
+import { logger } from "@/core/logger";
+import {
+    LEADS_BATCH_SIZE,
+    MAX_LLM_RETRY_ATTEMPTS,
+    RETRY_DELAY_BASE_MS,
+    RANKING_TASK_MAX_DURATION,
+    MAX_ERROR_MESSAGE_LENGTH,
+} from "@/core/constants";
 import { extractJsonResponse, estimateCost, completionWithRetry, LLM_MODEL } from "@/features/ai/client";
 import { buildRankingPrompt, CandidateInput } from "@/features/ranking/prompt";
 import { prefilterLead } from "@/features/ranking/prefilter";
 import { normalizeTitle } from "@/features/ingestion/normalization/title";
 import { companyScoutTask } from "./company-scout";
 import {
-    LLMResult,
     LLMResponse,
     mapResults,
     chunkArray,
     updateJobProgress,
     sleep
 } from "@/features/ranking/utils";
+import { ExcludedLead, LeadWithNormalizedTitle, LeadRankingUpdate } from "@/types/leads";
 
 // ============================================================================
 // TYPES
@@ -36,13 +44,6 @@ interface RankCompanyPayload {
     apiKey?: string;
     geminiApiKey?: string;
 }
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const BATCH_SIZE = 15;  // Leads per batch (smaller = more reliable)
-const MAX_RETRY_ATTEMPTS = 3;
 
 // ============================================================================
 // MAIN TASK
@@ -149,11 +150,11 @@ export const rankCompanyTask = task({
             }
 
             // 4. Process candidates in batches
-            const batches = chunkArray(candidates, BATCH_SIZE);
-            const allResults: Array<{ realId: string; result: LLMResult }> = [];
+            const batches = chunkArray(candidates, LEADS_BATCH_SIZE);
+            const allResults: Array<{ realId: string; result: { is_relevant: boolean; role_type: string; score: number; rank_within_company: number | null; rubric: { department_fit: number; seniority_fit: number; size_fit: number }; flags: string[]; reasoning: string } }> = [];
             let rateLimitHit = false;
 
-            console.log(`Processing ${candidates.length} candidates in ${batches.length} batches using ${selectedModel}`);
+            logger.info(`Processing candidates`, { count: candidates.length, batches: batches.length, model: selectedModel });
 
             for (const [batchIdx, batch] of batches.entries()) {
                 if (rateLimitHit) break;
@@ -169,7 +170,7 @@ export const rankCompanyTask = task({
 
                 // Call LLM with retry
                 let success = false;
-                for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS && !success; attempt++) {
+                for (let attempt = 1; attempt <= MAX_LLM_RETRY_ATTEMPTS && !success; attempt++) {
                     try {
                         const response = await completionWithRetry({
                             model: selectedModel,
@@ -218,16 +219,17 @@ export const rankCompanyTask = task({
 
                         success = true;
 
-                    } catch (e: any) {
-                        console.warn(`Batch ${batchIdx + 1} attempt ${attempt} failed:`, e.message?.substring(0, 100));
+                    } catch (e: unknown) {
+                        const error = e as { message?: string; provider?: string };
+                        logger.warn(`Batch attempt failed`, { batch: batchIdx + 1, attempt, error: error.message?.substring(0, 100) });
 
-                        if (e.message?.includes("models exhausted") || e.provider) {
+                        if (error.message?.includes("models exhausted") || error.provider) {
                             rateLimitHit = true;
                             break;
                         }
 
-                        if (attempt < MAX_RETRY_ATTEMPTS) {
-                            await sleep(2000 * attempt);
+                        if (attempt < MAX_LLM_RETRY_ATTEMPTS) {
+                            await sleep(RETRY_DELAY_BASE_MS * attempt);
                         }
                     }
                 }
@@ -299,7 +301,7 @@ export const rankCompanyTask = task({
 
             relevantResults.sort((a, b) => (b.result.score || 0) - (a.result.score || 0));
 
-            console.log(`Assigning final ranks to ${relevantResults.length} leads for company ${company.name}`);
+            logger.info(`Assigning final ranks`, { count: relevantResults.length, company: company.name });
 
             // Create a lookup map for candidate metadata to satisfy NOT NULL constraints during upsert
             const candidateMap = new Map(candidates.map(c => [c.id, c]));
@@ -317,16 +319,16 @@ export const rankCompanyTask = task({
             });
 
             if (rankUpdates.length > 0) {
-                console.log(`Updating ${rankUpdates.length} leads with ranks 1-${rankUpdates.length}`);
+                logger.info(`Updating leads with ranks`, { count: rankUpdates.length });
                 const { error: rankError } = await supabase.from("leads").upsert(rankUpdates, { onConflict: "id" });
                 if (rankError) {
-                    console.error("❌ Failed to save final ranks:", rankError);
+                    logger.error(`Failed to save final ranks`, { error: rankError.message });
                 } else {
-                    console.log(`✅ Final ranks successfully saved to database`);
+                    logger.info(`Final ranks successfully saved to database`);
 
                     // Trigger Company Scout if enabled
                     if (useCompanyScout !== false) {
-                        console.log(`🚀 Triggering Company Scout for ${company.name}`);
+                        logger.info(`Triggering Company Scout`, { company: company.name });
                         await tasks.trigger<typeof companyScoutTask>("company-scout", {
                             jobId,
                             companyId,
@@ -337,7 +339,7 @@ export const rankCompanyTask = task({
                     }
                 }
             } else {
-                console.log(`⚠️ No candidates qualified for ranking`);
+                logger.warn(`No candidates qualified for ranking`);
             }
 
             // 6. Mark company complete
@@ -361,7 +363,7 @@ export const rankCompanyTask = task({
                 .single();
 
             if (jobData && jobData.processed_companies >= jobData.total_companies) {
-                console.log(`✅ All ${jobData.total_companies} companies processed. Marking job as completed.`);
+                logger.info(`All companies processed, marking job as completed`, { total: jobData.total_companies });
                 await supabase
                     .from("ranking_jobs")
                     .update({
@@ -378,15 +380,16 @@ export const rankCompanyTask = task({
                 relevant: relevantResults.length,
             };
 
-        } catch (error: any) {
-            console.error(`rank-company failed for ${companyId}:`, error);
+        } catch (error: unknown) {
+            const err = error as Error;
+            logger.error(`rank-company failed`, { companyId, error: err.message });
 
             // Update job with error
             await supabase
                 .from("ranking_jobs")
                 .update({
                     status: "failed",
-                    error: error.message?.substring(0, 500),
+                    error: err.message?.substring(0, MAX_ERROR_MESSAGE_LENGTH),
                 })
                 .eq("id", jobId);
 
