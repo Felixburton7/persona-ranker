@@ -15,6 +15,13 @@ This project follows a **Feature-Sliced Architecture**, optimized for scalabilit
 
 ```bash
 src/
+├── app/                        # Next.js App Router (Frontend & API)
+│   ├── page.tsx               # Landing Page UI
+│   ├── optimization/          # Optimization Dashboard Route
+│   └── api/                   # Backend API Endpoints (Node.js/Serverless)
+│       ├── optimization/      # Optimization Logic Endpoint
+│       └── upload/            # File Upload Handler
+│
 ├── core/                       # Infrastructure & Shared Utilities
 │   ├── db/client.ts           # Supabase client singleton
 │   ├── api-response.ts        # Standardized API responses
@@ -22,26 +29,30 @@ src/
 │
 ├── features/                   # Business Logic (The "Brain")
 │   ├── ranking/               # Lead Ranking Logic
-│   │   ├── prefilter.ts       # Deterministic regex engine (saves ~40% cost)
+│   │   ├── prefilter.ts       # Deterministic regex engine
 │   │   └── prompt.ts          # Dynamic prompt construction
-│   ├── ai/                    # LLM Integration
-│   │   └── client.ts          # Multi-provider client (failover logic)
-│   └── ingestion/             # Data Processing
-│       └── normalization/     # Title/Company standardization rules
+│   ├── ai/                    # LLM Integration (Gemini/Groq)
+│   └── ingestion/             # Data Processing & Normalization
 │
 ├── services/                   # Data Access Layer (The "Muscle")
-│   ├── leads.ts               # Lead CRUD operations
-│   ├── jobs.ts                # Job state management
-│   └── api-keys.ts            # Secure key management
+│   ├── leads.ts               # Lead DB operations
+│   └── jobs.ts                # Job state management
+│
+├── hooks/                      # Custom React Hooks (State Logic)
+│   ├── leads/                 # useLeads (Realtime data syncing)
+│   └── ranking/               # useJobStatus (Polling & Progress)
 │
 ├── jobs/                       # Background Workers (Trigger.dev)
 │   ├── rank-company.ts        # Main orchestration workflow
 │   └── optimize-prompt.ts     # Autonomous enhancement agent
 │
-├── components/                 # UI Library
-│   ├── leads/                 # Lead-specific visualizations
-│   ├── ranking/               # Progress bars & cost tickers
+├── components/                 # UI Library (The "Body")
+│   ├── leads/                 # Data Tables & Visuals
+│   ├── optimization/          # Optimization Dashboard Widgets
 │   └── ui/                    # Reusable primitives (shadcn/ui)
+│
+├── config/                     # Constants & Environment Config
+└── types/                      # TypeScript Interfaces
 ```
 
 ---

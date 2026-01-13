@@ -22,7 +22,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 
 -- 2. Tables
-
+-- Allows to scrappe the company data like industry, size once and store it here, rather than refetching for every lead in the copmany. 
 CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS companies (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Treated prompts like code versions on github where you store all versions and iteratively improve. Which each metric directly stored. This allows the agent to request 
+-- The previously best prompt aswell. 
 CREATE TABLE IF NOT EXISTS prompt_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     version INTEGER NOT NULL,
@@ -72,6 +74,10 @@ CREATE TABLE IF NOT EXISTS ranking_jobs (
     error TEXT
 );
 
+-- I decided to go with a relevance score between 0 and 100, and also rank_within_company as opposed to gloabl rank. I used an enum for role type. 
+-- Rubric scores are stored as JSONB, as the rubric is dynamic and can change over time. 
+-- I use a postgres Generated column for full name as this allows for consistency and ease of use. 
+
 CREATE TABLE IF NOT EXISTS leads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -96,6 +102,7 @@ CREATE TABLE IF NOT EXISTS leads (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- This is just for token tracking use, and also it records which model is used. 
 CREATE TABLE IF NOT EXISTS ai_calls (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_id UUID REFERENCES ranking_jobs(id),
@@ -108,7 +115,8 @@ CREATE TABLE IF NOT EXISTS ai_calls (
     estimated_cost_usd DECIMAL(10, 6),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
+-- I treated the prompts like 
+-- Job status is used to manage UI state. 
 CREATE TABLE IF NOT EXISTS optimization_runs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     status job_status DEFAULT 'pending',
